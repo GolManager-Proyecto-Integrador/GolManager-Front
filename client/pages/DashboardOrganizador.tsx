@@ -37,7 +37,6 @@ export default function Dashboard() {
     { icon: Users, label: "Equipos y jugadores", href: "/teams" },
     { icon: Calendar, label: "Calendario", href: "/calendario" },
     { icon: BarChart3, label: "Resultados y posiciones", href: "/resultados" },
-    { icon: Settings, label: "Administrar organizadores", href: "/registrar-organizador", adminOnly: true },
   ];
 
   return (
@@ -62,7 +61,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h2 className="font-bold text-gray-900 text-lg">Torneos FC</h2>
-                <p className="text-sm text-gray-500">Panel Admin</p>
+                <p className="text-sm text-gray-500">Panel Organizador</p>
               </div>
             </div>
             <Button
@@ -92,9 +91,6 @@ export default function Dashboard() {
             >
               <item.icon className="w-5 h-5 flex-shrink-0" />
               <span className="font-medium">{item.label}</span>
-              {item.adminOnly && (
-                <Shield className="w-4 h-4 ml-auto" />
-              )}
             </Link>
           ))}
         </nav>
@@ -259,7 +255,6 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <h4 className="font-semibold text-gray-900">Gestionar Torneos</h4>
-                        <p className="text-sm text-gray-600">EP-02</p>
                       </div>
                     </div>
                   </CardContent>
@@ -275,7 +270,6 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <h4 className="font-semibold text-gray-900">Gestionar Equipos</h4>
-                        <p className="text-sm text-gray-600">EP-03</p>
                       </div>
                     </div>
                   </CardContent>
@@ -291,7 +285,6 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <h4 className="font-semibold text-gray-900">Generar Reportes</h4>
-                        <p className="text-sm text-gray-600">EP-04</p>
                       </div>
                     </div>
                   </CardContent>
