@@ -41,74 +41,74 @@ interface Tournament {
 const initialTournaments: Tournament[] = [
   {
     id: 1,
-    name: "Copa Primavera 2024",
-    startDate: "2024-03-15",
+    name: "Copa Primavera 2025",
+    startDate: "2025-09-15",
     status: "en_curso"
   },
   {
     id: 2,
     name: "Liga Regional Antioquia",
-    startDate: "2024-04-20",
+    startDate: "2025-10-20",
     status: "pendiente"
   },
   {
     id: 3,
     name: "Torneo Intermunicipal",
-    startDate: "2024-02-10",
+    startDate: "2025-08-10",
     status: "finalizado"
   },
   {
     id: 4,
-    name: "Copa Juvenil 2024",
-    startDate: "2024-05-05",
+    name: "Copa Juvenil 2025",
+    startDate: "2025-09-20",
     status: "pendiente"
   },
   {
     id: 5,
     name: "Liga Empresarial",
-    startDate: "2024-01-20",
+    startDate: "2025-08-20",
     status: "finalizado"
   },
   {
     id: 6,
     name: "Torneo de Verano",
-    startDate: "2024-03-25",
+    startDate: "2025-08-25",
     status: "en_curso"
   },
   {
     id: 7,
     name: "Copa Ciudad",
-    startDate: "2024-06-10",
+    startDate: "2025-10-10",
     status: "pendiente"
   },
   {
     id: 8,
     name: "Liga Amateur",
-    startDate: "2024-04-15",
+    startDate: "2025-10-15",
     status: "pendiente"
   },
   {
     id: 9,
     name: "Torneo Navideño 2023",
-    startDate: "2023-12-15",
+    startDate: "2025-08-15",
     status: "finalizado"
   },
   {
     id: 10,
     name: "Copa Barrios Unidos",
-    startDate: "2024-03-30",
+    startDate: "2025-09-30",
     status: "en_curso"
   },
   {
     id: 11,
     name: "Liga Estudiantil",
-    startDate: "2024-05-20",
+    startDate: "2025-10-20",
     status: "pendiente"
   },
   {
     id: 12,
     name: "Torneo Relámpago",
-    startDate: "2024-07-01",
+    startDate: "2025-10-01",
     status: "pendiente"
   }
 ];

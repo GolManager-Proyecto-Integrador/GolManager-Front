@@ -9,6 +9,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import DashboardOrganizador from "./pages/DashboardOrganizador";
+import ListaTorneos from "./pages/ListaTorneos";
+import CalendarioPartidos from "./pages/CalendarioPartidos";
 
 
 const queryClient = new QueryClient();
@@ -23,7 +25,9 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard-organizador" element={<DashboardOrganizador />} />
-          
+          <Route path="/lista-torneos" element={<ListaTorneos />} />
+          <Route path="/calendario" element={<CalendarioPartidos />} />
+
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
