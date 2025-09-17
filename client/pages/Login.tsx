@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom"; // 👈 importa useNavigate
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Lock, User, Eye, EyeOff, Shield, AlertTriangle } from "lucide-react";
+
+// 👇 importa tu servicio
+import { login } from "../services/authService";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -13,34 +16,27 @@ export default function Login() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const navigate = useNavigate(); // 👈 inicializa navigate
-
-  const users = [
-    { email: "admin@torneos.com", password: "admin123", role: "admin" },
-    { email: "organizador@torneos.com", password: "organizador123", role: "organizador" },
-  ];
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
-    setTimeout(() => {
-      const user = users.find(
-        (u) => u.email === email && u.password === password
-      );
+    try {
+      const data = await login(email, password);
 
-      if (!user) {
-        setError("⚠️ Credenciales incorrectas");
+      // Aquí puedes redirigir según el rol si tu backend lo envía
+      if (data.role === "ADMIN") {
+        navigate("/admin-dashboard");
       } else {
-        if (user.role === "admin") {
-          navigate("/admin-dashboard"); // 👉 redirige al dashboard de admin
-        } else {
-          navigate("/dashboard-organizador"); // 👉 redirige al dashboard de organizador
-        }
+        navigate("/dashboard-organizador");
       }
+    } catch (err: any) {
+      setError("⚠️ Credenciales incorrectas o servidor no disponible");
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
