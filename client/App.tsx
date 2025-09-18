@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import DashboardOrganizador from "./pages/DashboardOrganizador";
 import ListaTorneos from "./pages/ListaTorneos";
+import TeamManagement from "./pages/TeamManagement";
 import CalendarioPartidos from "./pages/CalendarioPartidos";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Unauthorized from "./pages/Unauthorized"; 
@@ -43,6 +44,15 @@ const App = () => (
             element={
               <ProtectedRoute role="USER">
                 <ListaTorneos />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/teams-manage"
+            element={
+              <ProtectedRoute role="USER">
+                <TeamManagement />
               </ProtectedRoute>
             }
           />

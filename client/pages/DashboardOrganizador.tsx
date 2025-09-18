@@ -34,7 +34,7 @@ export default function Dashboard() {
     { icon: LayoutGrid, label: "Dashboard", href: "/dashboard", active: true },
     //Faltan
     { icon: Trophy, label: "Torneos", href: "/lista-torneos" },
-    { icon: Users, label: "Equipos y jugadores", href: "/teams" },
+    { icon: Users, label: "Equipos y jugadores", href: "/teams-manage" },
     { icon: Calendar, label: "Calendario", href: "/calendario" },
     { icon: BarChart3, label: "Resultados y posiciones", href: "/resultados" },
   ];
