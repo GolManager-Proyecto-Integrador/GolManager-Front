@@ -6,6 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Lock, User, Eye, EyeOff, Shield, AlertTriangle } from "lucide-react";
 
+import { jwtDecode } from "jwt-decode";
+
+
 // 👇 importa tu servicio
 import { login } from "../services/authService";
 
@@ -23,20 +26,24 @@ export default function Login() {
     setIsLoading(true);
     setError("");
 
-    try {
-      const data = await login(email, password);
+  try {
+    const data = await login(email, password);
 
-      // Aquí puedes redirigir según el rol si tu backend lo envía
-      if (data.role === "ADMIN") {
-        navigate("/admin-dashboard");
-      } else {
-        navigate("/dashboard-organizador");
-      }
-    } catch (err: any) {
-      setError("⚠️ Credenciales incorrectas o servidor no disponible");
+    // decodifica el token para leer el rol
+    const decoded: any = jwtDecode(data.token);
+
+    if (decoded.role === "ADMIN") {
+      navigate("/admin-dashboard");
+    } else if (decoded.role === "USER") {
+      navigate("/dashboard-organizador");
+    } else {
+      setError("⚠️ Rol de usuario no reconocido");
+    } 
+  } catch (err: any) {
+    setError("⚠️ Credenciales incorrectas o servidor no disponible");
     } finally {
-      setIsLoading(false);
-    }
+    setIsLoading(false);
+  }
   };
 
   return (
