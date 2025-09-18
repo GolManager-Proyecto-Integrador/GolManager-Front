@@ -11,7 +11,8 @@ import Login from "./pages/Login";
 import DashboardOrganizador from "./pages/DashboardOrganizador";
 import ListaTorneos from "./pages/ListaTorneos";
 import CalendarioPartidos from "./pages/CalendarioPartidos";
-
+import ProtectedRoute from "./components/ProtectedRoute";
+import Unauthorized from "./pages/Unauthorized"; 
 
 const queryClient = new QueryClient();
 
@@ -22,12 +23,48 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* Rutas públicas */}
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/dashboard-organizador" element={<DashboardOrganizador />} />
-          <Route path="/lista-torneos" element={<ListaTorneos />} />
-          <Route path="/calendario" element={<CalendarioPartidos />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
 
+          {/* Solo organizadores (USER) */}
+          <Route
+            path="/dashboard-organizador"
+            element={
+              <ProtectedRoute role="USER">
+                <DashboardOrganizador />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/lista-torneos"
+            element={
+              <ProtectedRoute role="USER">
+                <ListaTorneos />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/calendario"
+            element={
+              <ProtectedRoute role="USER">
+                <CalendarioPartidos />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Solo Admin (ADMIN) */}
+          {/* <Route
+            path="/admin-dashboard"
+            element={
+              <ProtectedRoute role="ADMIN">
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          /> */}
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
@@ -35,3 +72,4 @@ const App = () => (
 );
 
 createRoot(document.getElementById("root")!).render(<App />);
+
