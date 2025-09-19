@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,27 +12,38 @@ import {
   LogOut, 
   Plus,
   TrendingUp,
-  Clock,
-  Shield,
   Menu,
   X,
   Flag
 } from "lucide-react";
+import { 
+  fetchDashboardStats, 
+  fetchOrganizerInfo, 
+  DashboardStats, 
+  OrganizerInfo 
+} from "../services/dashboardService";
 
 export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
-  const organizerName = "Luis Carlos Vanegas";
-  const stats = {
-    totalTournaments: 12,
-    activeTournaments: 3,
-    upcomingMatches: 8,
-    registeredTeams: 45
-  };
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [organizer, setOrganizer] = useState<OrganizerInfo | null>(null);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const statsData = await fetchDashboardStats();
+        const organizerData = await fetchOrganizerInfo();
+        setStats(statsData);
+        setOrganizer(organizerData);
+      } catch (err) {
+        console.error("Error cargando datos del dashboard:", err);
+      }
+    }
+    loadData();
+  }, []);
 
   const navigationItems = [
     { icon: LayoutGrid, label: "Dashboard", href: "/dashboard", active: true },
-    //Faltan
     { icon: Trophy, label: "Torneos", href: "/lista-torneos" },
     { icon: Users, label: "Equipos y jugadores", href: "/teams-manage" },
     { icon: Calendar, label: "Calendario", href: "/calendario" },
@@ -48,6 +59,7 @@ export default function Dashboard() {
         />
       )}
 
+      {/* Sidebar */}
       <aside className={`
         fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-50 transform transition-transform duration-200 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -106,6 +118,7 @@ export default function Dashboard() {
         </div>
       </aside>
 
+      {/* Main Content */}
       <div className="lg:ml-0 flex-1">
         <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
           <div className="px-6 py-4">
@@ -123,18 +136,24 @@ export default function Dashboard() {
                   <LayoutGrid className="w-6 h-6 text-blue-600" />
                   <div>
                     <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-                    <p className="text-sm text-gray-500 -mt-0.5">Panel central de gestión de torneos</p>
+                    <p className="text-sm text-gray-500 -mt-0.5">
+                      Panel central de gestión de torneos
+                    </p>
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <p className="text-sm text-gray-500">Organizador</p>
-                  <p className="font-semibold text-gray-900">{organizerName}</p>
+                  <p className="font-semibold text-gray-900">
+                    {organizer?.name ?? "Cargando..."}
+                  </p>
                 </div>
                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center">
                   <span className="text-white font-semibold">
-                    {organizerName.split(' ').map(name => name[0]).join('').substring(0, 2)}
+                    {organizer
+                      ? organizer.name.split(" ").map(n => n[0]).join("").substring(0,2)
+                      : "OC"}
                   </span>
                 </div>
               </div>
@@ -156,6 +175,7 @@ export default function Dashboard() {
             </Link>
           </div>
 
+          {/* Estadísticas principales */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Link to="/lista-torneos">
               <Card className="hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02] cursor-pointer border-0 shadow-md bg-blue-50">
@@ -169,7 +189,9 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="space-y-2">
-                    <p className="text-3xl font-bold text-gray-900">{stats.totalTournaments}</p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {stats?.totalTournaments ?? 0}
+                    </p>
                     <div className="flex items-center gap-1 text-sm">
                       <TrendingUp className="w-4 h-4 text-green-500" />
                       <span className="text-green-600 font-medium">+2 este mes</span>
@@ -193,7 +215,9 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="space-y-2">
-                    <p className="text-3xl font-bold text-gray-900">{stats.activeTournaments}</p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {stats?.activeTournaments ?? 0}
+                    </p>
                     <p className="text-sm text-gray-600">En curso actualmente</p>
                   </div>
                 </CardContent>
@@ -212,7 +236,9 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="space-y-2">
-                    <p className="text-3xl font-bold text-gray-900">{stats.upcomingMatches}</p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {stats?.upcomingMatches ?? 0}
+                    </p>
                     <p className="text-sm text-gray-600">Esta semana</p>
                   </div>
                 </CardContent>
@@ -231,7 +257,9 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="space-y-2">
-                    <p className="text-3xl font-bold text-gray-900">{stats.registeredTeams}</p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {stats?.registeredTeams ?? 0}
+                    </p>
                     <div className="flex items-center gap-1 text-sm">
                       <TrendingUp className="w-4 h-4 text-green-500" />
                       <span className="text-green-600 font-medium">+5 nueva inscripción</span>
@@ -242,9 +270,9 @@ export default function Dashboard() {
             </Link>
           </div>
 
+          {/* Navegación rápida */}
           <div className="space-y-4">
             <h3 className="text-xl font-bold text-gray-900">Navegación rápida</h3>
-
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <Link to="/lista-torneos">
                 <Card className="hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02] cursor-pointer border-0 shadow-md bg-white">

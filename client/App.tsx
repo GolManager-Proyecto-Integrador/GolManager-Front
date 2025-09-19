@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import DashboardOrganizador from "./pages/DashboardOrganizador";
 import ListaTorneos from "./pages/ListaTorneos";
+import DetallesTorneo from "./pages/DetallesTorneo";
 import TeamManagement from "./pages/TeamManagement";
 import CalendarioPartidos from "./pages/CalendarioPartidos";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -44,6 +45,15 @@ const App = () => (
             element={
               <ProtectedRoute role="USER">
                 <ListaTorneos />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="//torneo/:id"   //Verificar id del Backend
+            element={
+              <ProtectedRoute role="USER">
+                <DetallesTorneo />
               </ProtectedRoute>
             }
           />
