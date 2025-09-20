@@ -13,6 +13,7 @@ import ListaTorneos from "./pages/ListaTorneos";
 import DetallesTorneo from "./pages/DetallesTorneo";
 import TeamManagement from "./pages/TeamManagement";
 import CalendarioPartidos from "./pages/CalendarioPartidos";
+import GestionCompetencias from "./pages/GestionCompetencias";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Unauthorized from "./pages/Unauthorized"; 
 
@@ -72,6 +73,15 @@ const App = () => (
             element={
               <ProtectedRoute role="USER">
                 <CalendarioPartidos />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/gestion-competencias"
+            element={
+              <ProtectedRoute role="USER">
+                <GestionCompetencias />
               </ProtectedRoute>
             }
           />

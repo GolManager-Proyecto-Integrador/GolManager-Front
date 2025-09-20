@@ -43,10 +43,10 @@ export default function Dashboard() {
   }, []);
 
   const navigationItems = [
-    { icon: LayoutGrid, label: "Dashboard", href: "/dashboard", active: true },
-    { icon: Trophy, label: "Torneos", href: "/lista-torneos" },
-    { icon: Users, label: "Equipos y jugadores", href: "/teams-manage" },
-    { icon: Calendar, label: "Calendario", href: "/calendario" },
+    { icon: LayoutGrid, label: "Dashboard", href: "/dashboard", active: true }, //HECHA
+    { icon: Trophy, label: "Torneos", href: "/lista-torneos" },                 //HECHA
+    { icon: Users, label: "Equipos y jugadores", href: "/teams-manage" },       //HECHA
+    { icon: Calendar, label: "Calendario", href: "/calendario" },               //HECHA
     { icon: BarChart3, label: "Resultados y posiciones", href: "/resultados" },
   ];
 
@@ -163,7 +163,7 @@ export default function Dashboard() {
 
         <main className="p-6 space-y-8">
           <div className="flex justify-start">
-            <Link to="/crear-torneo">
+            <Link to="/gestion-competencias">
               <Button 
                 size="lg"
                 className="text-white font-semibold px-8 py-4 text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
