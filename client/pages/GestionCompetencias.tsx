@@ -5,7 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Badge } from '@/components/ui/badge';
 import { Plus, Calendar, Users, CalendarDays } from 'lucide-react';
 import { CreateTournamentModal } from '@/components/CreateTournamentModal';
-import tournamentService, { Tournament } from '@/services/gcompetenciaService';
+import gcompetenciaService, { Tournament } from '@/services/gcompetenciaService';
 
 const getStatusColor = (status: Tournament['status']) => {
   switch (status) {
@@ -35,19 +35,21 @@ export default function GestionCompetencias() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Función para recargar lista
+  const fetchTournaments = async () => {
+    try {
+      setLoading(true);
+      const data = await gcompetenciaService.getTournaments();
+      setTournaments(data);
+    } catch (error) {
+      console.error('Error cargando competencias:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const data = await tournamentService.getTournaments();
-        setTournaments(data);
-      } catch (error) {
-        console.error('Error cargando competencias:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    fetchTournaments();
   }, []);
 
   return (
@@ -94,7 +96,10 @@ export default function GestionCompetencias() {
         ) : tournaments.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {tournaments.map((tournament) => (
-              <Card key={tournament.id} className="bg-white shadow-sm hover:shadow-md transition-shadow duration-200 border-0 rounded-xl">
+              <Card
+                key={tournament.id}
+                className="bg-white shadow-sm hover:shadow-md transition-shadow duration-200 border-0 rounded-xl"
+              >
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start mb-2">
                     <CardTitle className="text-lg font-semibold text-gray-900 line-clamp-2">
@@ -162,10 +167,13 @@ export default function GestionCompetencias() {
         )}
       </div>
 
+      {/* Modal */}
       <CreateTournamentModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
+        onCreated={fetchTournaments}  // refresca desde el backend
       />
     </div>
   );
 }
+

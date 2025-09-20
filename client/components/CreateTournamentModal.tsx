@@ -26,10 +26,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import gcompetenciaService, { Tournament } from '@/services/gcompetenciaService';
 
 interface CreateTournamentModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onCreated: (tournament: Tournament) => void; // 🔹 Nuevo callback
 }
 
 interface FormData {
@@ -43,7 +45,7 @@ interface FormData {
   referees: string[];
 }
 
-export function CreateTournamentModal({ isOpen, onClose }: CreateTournamentModalProps) {
+export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTournamentModalProps) {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     startDate: undefined,
@@ -58,36 +60,55 @@ export function CreateTournamentModal({ isOpen, onClose }: CreateTournamentModal
   const [newReferee, setNewReferee] = useState('');
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate required fields
     if (!formData.name || !formData.startDate || !formData.endDate || !formData.format) {
       alert('Por favor completa todos los campos requeridos');
       return;
     }
-
     if (formData.endDate < formData.startDate) {
       alert('La fecha de finalización debe ser posterior a la fecha de inicio');
       return;
     }
 
-    console.log('Creating tournament:', formData);
-    
-    // Reset form and close modal
-    setFormData({
-      name: '',
-      startDate: undefined,
-      endDate: undefined,
-      format: '',
-      teams: 8,
-      roundTrip: false,
-      yellowCards: 5,
-      referees: []
-    });
-    
-    onClose();
+    try {
+      setLoading(true);
+      const newTournament = await gcompetenciaService.createTournament({
+        name: formData.name,
+        startDate: formData.startDate.toISOString().split('T')[0],
+        endDate: formData.endDate.toISOString().split('T')[0],
+        format: formData.format,
+        teams: formData.teams,
+        roundTrip: formData.roundTrip,
+        yellowCards: formData.yellowCards,
+        referees: formData.referees,
+        status: 'Pendiente', // 🔹 Nuevo torneo arranca pendiente
+      });
+
+      // 🔹 Llamamos al callback para refrescar la lista
+      onCreated(newTournament);
+
+      // Reset y cerrar
+      setFormData({
+        name: '',
+        startDate: undefined,
+        endDate: undefined,
+        format: '',
+        teams: 8,
+        roundTrip: false,
+        yellowCards: 5,
+        referees: []
+      });
+      onClose();
+    } catch (error) {
+      console.error('Error creando torneo:', error);
+      alert('Error al crear la competencia');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const addReferee = () => {
@@ -378,14 +399,16 @@ export function CreateTournamentModal({ isOpen, onClose }: CreateTournamentModal
               variant="outline"
               onClick={onClose}
               className="flex-1"
+              disabled={loading}
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+              disabled={loading}
             >
-              Crear Competencia
+              {loading ? 'Creando...' : 'Crear Competencia'}
             </Button>
           </DialogFooter>
         </form>

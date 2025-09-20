@@ -10,10 +10,14 @@ export interface Tournament {
   name: string;
   startDate: string;
   endDate: string;
-  status: "Pendiente" | "En curso" | "Finalizado";
+  status: 'En curso' | 'Finalizado' | 'Pendiente';
   teams: number;
   format: string;
+  roundTrip?: boolean;
+  yellowCards?: number;
+  referees?: string[];
 }
+
 
 export interface Match {
   id: string;

@@ -22,7 +22,7 @@ import {
   Users,
 } from "lucide-react";
 
-import tournamentService, {
+import dettournamentService, {
   Tournament,
   Match,
   TeamPosition,
@@ -87,9 +87,9 @@ export default function DetallesTorneo() {
     if (id) {
       setLoading(true);
       Promise.all([
-        tournamentService.getTournamentDetails(id),
-        tournamentService.getMatches(id),
-        tournamentService.getStandings(id),
+        dettournamentService.getTournamentDetails(id),
+        dettournamentService.getMatches(id),
+        dettournamentService.getStandings(id),
       ])
         .then(([tData, mData, sData]) => {
           setTournament(tData);
