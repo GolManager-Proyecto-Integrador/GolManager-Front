@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Calendar, Users, CalendarDays } from 'lucide-react';
+import { CreateTournamentModal } from '@/components/CreateTournamentModal';
 
 
 interface Tournament {
@@ -210,7 +211,10 @@ export default function Index() {
         )}
       </div>
 
-      
+      <CreateTournamentModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+      />
     </div>
   );
 }
