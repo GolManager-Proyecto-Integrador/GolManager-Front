@@ -21,7 +21,7 @@ import {
   fetchOrganizerInfo, 
   DashboardStats, 
   OrganizerInfo 
-} from "../services/dashboardService";
+} from "../services/orgdashboardService";
 
 export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);

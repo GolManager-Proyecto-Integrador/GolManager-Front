@@ -1,8 +1,7 @@
-// src/services/calendarService.ts
 import axios from "axios";
 import { getToken } from "./authService";
 
-// Ajusta al puerto de tu backend
+// Ajustar al puerto de backend
 const API_URL = "http://localhost:8085/api/calendar";
 
 export interface CalendarMatch {

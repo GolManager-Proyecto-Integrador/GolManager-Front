@@ -1,4 +1,3 @@
-// src/services/tournamentService.ts
 import axios from "axios";
 
 // Ajustar esta URL según backend (podemos usar import.meta.env.VITE_API_URL)

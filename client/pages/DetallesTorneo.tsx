@@ -26,7 +26,7 @@ import tournamentService, {
   Tournament,
   Match,
   TeamPosition,
-} from "@/services/tournamentService";
+} from "@/services/dettournamentService";
 
 // Utility functions
 const getStatusColor = (status: "pendiente" | "en_curso" | "finalizado") => {

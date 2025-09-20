@@ -1,7 +1,7 @@
 import axios from "axios";
 import { getToken } from "./authService";
 
-// Ajusta al puerto y ruta de tu backend
+// Ajustar al puerto y ruta de backend
 const API_URL = "http://localhost:8085/api/dashboard";
 
 export interface DashboardStats {
@@ -17,7 +17,7 @@ export interface OrganizerInfo {
   email: string;
 }
 
-// 🔹 Obtener estadísticas principales del dashboard
+// Obtener estadísticas principales del dashboard
 export async function fetchDashboardStats(): Promise<DashboardStats> {
   const token = getToken();
   const response = await axios.get(`${API_URL}/stats`, {
@@ -26,7 +26,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   return response.data;
 }
 
-// 🔹 Obtener info del organizador
+// Obtener info del organizador
 export async function fetchOrganizerInfo(): Promise<OrganizerInfo> {
   const token = getToken();
   const response = await axios.get(`${API_URL}/organizer`, {
