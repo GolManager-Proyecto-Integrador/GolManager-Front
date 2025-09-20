@@ -1,78 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Calendar, Users, CalendarDays } from 'lucide-react';
 import { CreateTournamentModal } from '@/components/CreateTournamentModal';
-
-
-interface Tournament {
-  id: string;
-  name: string;
-  startDate: string;
-  endDate: string;
-  status: 'En curso' | 'Finalizado' | 'Pendiente';
-  teams: number;
-  format: string;
-}
-
-const mockTournaments: Tournament[] = [
-  {
-    id: '1',
-    name: 'Liga Nacional de Fútbol 2025',
-    startDate: '2025-03-15',
-    endDate: '2025-11-30',
-    status: 'En curso',
-    teams: 20,
-    format: 'Liga'
-  },
-  {
-    id: '2',
-    name: 'Copa Ciudad Primavera',
-    startDate: '2025-04-01',
-    endDate: '2025-05-15',
-    status: 'Pendiente',
-    teams: 16,
-    format: 'Eliminatoria'
-  },
-  {
-    id: '3',
-    name: 'Torneo de Verano 2025',
-    startDate: '2025-12-01',
-    endDate: '2025-02-28',
-    status: 'Finalizado',
-    teams: 12,
-    format: 'Liga'
-  },
-  {
-    id: '4',
-    name: 'Copa Regional Norte',
-    startDate: '2025-06-01',
-    endDate: '2025-08-15',
-    status: 'Pendiente',
-    teams: 8,
-    format: 'Eliminatoria'
-  },
-  {
-    id: '5',
-    name: 'Liga Juvenil 2025',
-    startDate: '2025-02-01',
-    endDate: '2025-10-30',
-    status: 'En curso',
-    teams: 14,
-    format: 'Liga'
-  },
-  {
-    id: '6',
-    name: 'Torneo Relámpago',
-    startDate: '2025-11-01',
-    endDate: '2025-11-30',
-    status: 'Finalizado',
-    teams: 6,
-    format: 'Repechaje'
-  }
-];
+import tournamentService, { Tournament } from '@/services/gcompetenciaService';
 
 const getStatusColor = (status: Tournament['status']) => {
   switch (status) {
@@ -96,9 +29,26 @@ const formatDate = (dateString: string) => {
   });
 };
 
-export default function Index() {
+export default function GestionCompetencias() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const data = await tournamentService.getTournaments();
+        setTournaments(data);
+      } catch (error) {
+        console.error('Error cargando competencias:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -139,57 +89,58 @@ export default function Index() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockTournaments.map((tournament) => (
-            <Card key={tournament.id} className="bg-white shadow-sm hover:shadow-md transition-shadow duration-200 border-0 rounded-xl">
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start mb-2">
-                  <CardTitle className="text-lg font-semibold text-gray-900 line-clamp-2">
-                    {tournament.name}
-                  </CardTitle>
-                  <Badge 
-                    variant="secondary" 
-                    className={`ml-2 flex-shrink-0 ${getStatusColor(tournament.status)}`}
-                  >
-                    {tournament.status}
-                  </Badge>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="pt-0 pb-4 space-y-3">
-                <div className="flex items-center text-sm text-gray-600">
-                  <Calendar className="w-4 h-4 mr-2 text-primary" />
-                  <span>
-                    {formatDate(tournament.startDate)} - {formatDate(tournament.endDate)}
-                  </span>
-                </div>
-                
-                <div className="flex items-center justify-between text-sm text-gray-600">
-                  <div className="flex items-center">
-                    <Users className="w-4 h-4 mr-2 text-primary" />
-                    <span>{tournament.teams} equipos</span>
+        {loading ? (
+          <div className="text-center py-12 text-gray-600">Cargando competencias...</div>
+        ) : tournaments.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {tournaments.map((tournament) => (
+              <Card key={tournament.id} className="bg-white shadow-sm hover:shadow-md transition-shadow duration-200 border-0 rounded-xl">
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-start mb-2">
+                    <CardTitle className="text-lg font-semibold text-gray-900 line-clamp-2">
+                      {tournament.name}
+                    </CardTitle>
+                    <Badge 
+                      variant="secondary" 
+                      className={`ml-2 flex-shrink-0 ${getStatusColor(tournament.status)}`}
+                    >
+                      {tournament.status}
+                    </Badge>
                   </div>
-                  <Badge variant="outline" className="text-xs">
-                    {tournament.format}
-                  </Badge>
-                </div>
-              </CardContent>
-              
-              <CardFooter className="pt-0">
-                <Button
-                  variant="outline"
-                  className="w-full text-primary border-primary hover:bg-primary hover:text-white transition-colors"
-                  onClick={() => navigate(`/detalles-torneo/${tournament.id}`)}
-                >
-                  Ver detalles
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-
-        {/* Empty state if no tournaments */}
-        {mockTournaments.length === 0 && (
+                </CardHeader>
+                
+                <CardContent className="pt-0 pb-4 space-y-3">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Calendar className="w-4 h-4 mr-2 text-primary" />
+                    <span>
+                      {formatDate(tournament.startDate)} - {formatDate(tournament.endDate)}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <div className="flex items-center">
+                      <Users className="w-4 h-4 mr-2 text-primary" />
+                      <span>{tournament.teams} equipos</span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {tournament.format}
+                    </Badge>
+                  </div>
+                </CardContent>
+                
+                <CardFooter className="pt-0">
+                  <Button
+                    variant="outline"
+                    className="w-full text-primary border-primary hover:bg-primary hover:text-white transition-colors"
+                    onClick={() => navigate(`/detalles-torneo/${tournament.id}`)}
+                  >
+                    Ver detalles
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        ) : (
           <div className="text-center py-12">
             <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
               <Users className="w-12 h-12 text-gray-400" />
