@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -20,7 +20,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, X, CalendarIcon } from 'lucide-react';
+import { X, CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -31,7 +31,7 @@ import gcompetenciaService, { Tournament } from '@/services/gcompetenciaService'
 interface CreateTournamentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreated: (tournament: Tournament) => void; // 🔹 Nuevo callback
+  onCreated: (tournament: Tournament) => void;
 }
 
 interface FormData {
@@ -57,10 +57,22 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
     referees: []
   });
 
-  const [newReferee, setNewReferee] = useState('');
+  const [refereesList, setRefereesList] = useState<{ id: string; name: string }[]>([]);
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchReferees = async () => {
+      try {
+        const data = await gcompetenciaService.getReferees();
+        setRefereesList(data);
+      } catch (error) {
+        console.error("Error cargando árbitros:", error);
+      }
+    };
+    fetchReferees();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,13 +97,11 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
         roundTrip: formData.roundTrip,
         yellowCards: formData.yellowCards,
         referees: formData.referees,
-        status: 'Pendiente', // 🔹 Nuevo torneo arranca pendiente
+        status: 'Pendiente',
       });
 
-      // 🔹 Llamamos al callback para refrescar la lista
       onCreated(newTournament);
 
-      // Reset y cerrar
       setFormData({
         name: '',
         startDate: undefined,
@@ -108,16 +118,6 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
       alert('Error al crear la competencia');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const addReferee = () => {
-    if (newReferee.trim() && !formData.referees.includes(newReferee.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        referees: [...prev.referees, newReferee.trim()]
-      }));
-      setNewReferee('');
     }
   };
 
@@ -342,31 +342,34 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
             <Label className="text-sm font-medium text-gray-900">
               Árbitros autorizados
             </Label>
-            
-            <div className="flex space-x-2">
-              <Input
-                placeholder="Nombre del árbitro"
-                value={newReferee}
-                onChange={(e) => setNewReferee(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addReferee())}
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                onClick={addReferee}
-                variant="outline"
-                className="flex-shrink-0"
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Agregar
-              </Button>
-            </div>
+
+            <Select
+              onValueChange={(value) => {
+                if (!formData.referees.includes(value)) {
+                  setFormData(prev => ({
+                    ...prev,
+                    referees: [...prev.referees, value]
+                  }));
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar árbitro" />
+              </SelectTrigger>
+              <SelectContent>
+                {refereesList.map((ref) => (
+                  <SelectItem key={ref.id} value={ref.name}>
+                    {ref.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             {formData.referees.length > 0 && (
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium">
-                    Árbitros agregados ({formData.referees.length})
+                    Árbitros seleccionados ({formData.referees.length})
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -416,3 +419,4 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
     </Dialog>
   );
 }
+

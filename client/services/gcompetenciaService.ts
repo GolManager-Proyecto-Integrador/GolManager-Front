@@ -3,6 +3,7 @@ import { getToken } from "./authService";
 
 // Ajustar al puerto y ruta de backend
 const API_URL = "http://localhost:8085/api/tournaments";
+const REFEREES_URL = "http://localhost:8085/api/referees"; // 🔹 Nuevo endpoint para árbitros
 
 // Interfaces
 export interface Tournament {
@@ -10,14 +11,13 @@ export interface Tournament {
   name: string;
   startDate: string;
   endDate: string;
-  status: 'En curso' | 'Finalizado' | 'Pendiente';
+  status: "En curso" | "Finalizado" | "Pendiente";
   teams: number;
   format: string;
   roundTrip?: boolean;
   yellowCards?: number;
   referees?: string[];
 }
-
 
 export interface Match {
   id: string;
@@ -47,6 +47,12 @@ export interface TeamPosition {
   isQualified?: boolean;
 }
 
+// 🔹 Nueva interfaz para árbitros
+export interface Referee {
+  id: string;
+  name: string;
+}
+
 // Obtener todas las competencias
 async function getTournaments(): Promise<Tournament[]> {
   const token = getToken();
@@ -66,7 +72,9 @@ async function getTournamentDetails(id: string): Promise<Tournament> {
 }
 
 // Crear nueva competencia
-async function createTournament(tournament: Omit<Tournament, "id">): Promise<Tournament> {
+async function createTournament(
+  tournament: Omit<Tournament, "id">
+): Promise<Tournament> {
   const token = getToken();
   const response = await axios.post(API_URL, tournament, {
     headers: { Authorization: `Bearer ${token}` },
@@ -112,6 +120,15 @@ async function getStandings(tournamentId: string): Promise<TeamPosition[]> {
   return response.data;
 }
 
+// 🔹 Obtener lista de árbitros
+async function getReferees(): Promise<Referee[]> {
+  const token = getToken();
+  const response = await axios.get(REFEREES_URL, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return response.data;
+}
+
 export default {
   getTournaments,
   getTournamentDetails,
@@ -120,4 +137,5 @@ export default {
   deleteTournament,
   getMatches,
   getStandings,
+  getReferees, // 🔹 Exportar nuevo método
 };
