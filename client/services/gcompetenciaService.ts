@@ -81,11 +81,12 @@ async function createTournament(
     ...tournament,
     referees: tournament.referees?.map(Number) || [],
   };
-  const response = await axios.post(API_URL, payload, {
+  const response = await axios.post(`${API_URL}/create`, payload, { // <-- 🔹 CAMBIO AQUÍ
     headers: { Authorization: `Bearer ${token}` },
   });
   return response.data;
 }
+
 
 // Actualizar competencia
 async function updateTournament(
