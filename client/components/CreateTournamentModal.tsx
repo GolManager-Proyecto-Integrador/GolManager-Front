@@ -42,7 +42,7 @@ interface FormData {
   teams: number;
   roundTrip: boolean;
   yellowCards: number;
-  referees: string[];
+  referees: string[]; // guardamos los IDs como string
 }
 
 export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTournamentModalProps) {
@@ -61,10 +61,6 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  // 🔹 Función para formatear fechas sin problemas de zona horaria
-  const formatDateForBackend = (date: Date) =>
-    date.toLocaleDateString("sv-SE"); // YYYY-MM-DD
 
   useEffect(() => {
     const fetchReferees = async () => {
@@ -94,15 +90,16 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
       setLoading(true);
       const newTournament = await gcompetenciaService.createTournament({
         name: formData.name,
-        startDate: formatDateForBackend(formData.startDate),
-        endDate: formatDateForBackend(formData.endDate),
+        startDate: formData.startDate.toISOString().split('T')[0],
+        endDate: formData.endDate.toISOString().split('T')[0],
         format: formData.format,
         teams: formData.teams,
         roundTrip: formData.roundTrip,
         yellowCards: formData.yellowCards,
-        referees: formData.referees.map(Number),
+        referees: formData.referees.map(Number), // 🔹 conversión aquí
         status: 'Pendiente',
-      });
+});
+;
 
       onCreated(newTournament);
 
@@ -198,7 +195,7 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="center" sideOffset={5}>
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={formData.startDate}
@@ -206,57 +203,12 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
                       setFormData(prev => ({ ...prev, startDate: date }));
                       setStartDateOpen(false);
                     }}
-                    disabled={(date) => {
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      return date < today;
-                    }}
+                    disabled={(date) => date < new Date()}
                     initialFocus
                   />
                 </PopoverContent>
               </Popover>
             </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-900">
-                Fecha de finalización *
-              </Label>
-              <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.endDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.endDate ? (
-                      format(formData.endDate, "PPP", { locale: es })
-                    ) : (
-                      "Seleccionar fecha"
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="center" sideOffset={5}>
-                  <Calendar
-                    mode="single"
-                    selected={formData.endDate}
-                    onSelect={(date) => {
-                      setFormData(prev => ({ ...prev, endDate: date }));
-                      setEndDateOpen(false);
-                    }}
-                    disabled={(date) => {
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      return date < today || (formData.startDate && date < formData.startDate);
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
 
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-900">
@@ -296,7 +248,7 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
                 </PopoverContent>
               </Popover>
             </div>
-
+          </div>
 
           {/* Format and Teams */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
