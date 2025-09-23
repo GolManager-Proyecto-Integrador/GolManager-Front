@@ -45,6 +45,13 @@ interface FormData {
   referees: string[]; // guardamos los IDs como string
 }
 
+// 🔹 Mapeo entre lo que selecciona el usuario y lo que espera el backend
+const formatMap: Record<string, string> = {
+  Liga: "LEAGUE",
+  Eliminatoria: "DIRECT_ELIMINATION",
+  Repechaje: "PLAY_OFF",
+};
+
 export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTournamentModalProps) {
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -92,14 +99,13 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
         name: formData.name,
         startDate: formData.startDate.toISOString().split('T')[0],
         endDate: formData.endDate.toISOString().split('T')[0],
-        format: formData.format,
+        format: formatMap[formData.format], // 🔹 conversión aquí
         teams: formData.teams,
         roundTrip: formData.roundTrip,
         yellowCards: formData.yellowCards,
-        referees: formData.referees.map(Number), // 🔹 conversión aquí
+        referees: formData.referees.map(Number),
         status: 'Pendiente',
-});
-;
+      });
 
       onCreated(newTournament);
 
@@ -174,6 +180,7 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
 
           {/* Dates */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Start Date */}
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-900">
                 Fecha de inicio *
@@ -210,6 +217,7 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
               </Popover>
             </div>
 
+            {/* End Date */}
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-900">
                 Fecha de finalización *
