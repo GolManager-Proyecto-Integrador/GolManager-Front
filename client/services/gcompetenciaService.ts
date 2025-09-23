@@ -3,7 +3,7 @@ import { getToken } from "./authService";
 
 // Ajustar al puerto y ruta de backend
 const API_URL = "http://localhost:8085/api/tournaments";
-const REFEREES_URL = "http://localhost:8085/api/referees"; // 🔹 Nuevo endpoint para árbitros
+const REFEREES_URL = "http://localhost:8085/api/referees"; // 🔹 Endpoint para árbitros
 
 // Interfaces
 export interface Tournament {
@@ -49,7 +49,7 @@ export interface TeamPosition {
 
 // 🔹 Nueva interfaz para árbitros
 export interface Referee {
-  id: string;
+  id: number;
   name: string;
 }
 
@@ -126,7 +126,8 @@ async function getReferees(): Promise<Referee[]> {
   const response = await axios.get(REFEREES_URL, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  return response.data;
+  // Ajuste: el backend devuelve { referees: [...] }
+  return response.data.referees;
 }
 
 export default {
@@ -137,5 +138,5 @@ export default {
   deleteTournament,
   getMatches,
   getStandings,
-  getReferees, // 🔹 Exportar nuevo método
+  getReferees, // Exportar nuevo método
 };
