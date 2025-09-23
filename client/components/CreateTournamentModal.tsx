@@ -26,7 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import gcompetenciaService, { Tournament } from '@/services/gcompetenciaService';
+import gcompetenciaService, { Tournament, Referee } from '@/services/gcompetenciaService';
 
 interface CreateTournamentModalProps {
   isOpen: boolean;
@@ -42,7 +42,7 @@ interface FormData {
   teams: number;
   roundTrip: boolean;
   yellowCards: number;
-  referees: string[];
+  referees: string[]; // guardamos los IDs como string
 }
 
 export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTournamentModalProps) {
@@ -57,7 +57,7 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
     referees: []
   });
 
-  const [refereesList, setRefereesList] = useState<{ id: string; name: string }[]>([]);
+  const [refereesList, setRefereesList] = useState<Referee[]>([]);
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -96,9 +96,10 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
         teams: formData.teams,
         roundTrip: formData.roundTrip,
         yellowCards: formData.yellowCards,
-        referees: formData.referees,
+        referees: formData.referees.map(Number), // 🔹 conversión aquí
         status: 'Pendiente',
-      });
+});
+;
 
       onCreated(newTournament);
 
@@ -358,7 +359,7 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
               </SelectTrigger>
               <SelectContent>
                 {refereesList.map((ref) => (
-                  <SelectItem key={ref.id} value={ref.name}>
+                  <SelectItem key={ref.id} value={String(ref.id)}>
                     {ref.name}
                   </SelectItem>
                 ))}
@@ -374,22 +375,25 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="flex flex-wrap gap-2">
-                    {formData.referees.map((referee, index) => (
-                      <Badge 
-                        key={index}
-                        variant="secondary"
-                        className="flex items-center gap-1"
-                      >
-                        {referee}
-                        <button
-                          type="button"
-                          onClick={() => removeReferee(index)}
-                          className="ml-1 hover:text-destructive"
+                    {formData.referees.map((refereeId, index) => {
+                      const refereeName = refereesList.find(r => String(r.id) === refereeId)?.name || refereeId;
+                      return (
+                        <Badge 
+                          key={index}
+                          variant="secondary"
+                          className="flex items-center gap-1"
                         >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
+                          {refereeName}
+                          <button
+                            type="button"
+                            onClick={() => removeReferee(index)}
+                            className="ml-1 hover:text-destructive"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -419,4 +423,3 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
     </Dialog>
   );
 }
-

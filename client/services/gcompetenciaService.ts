@@ -16,7 +16,7 @@ export interface Tournament {
   format: string;
   roundTrip?: boolean;
   yellowCards?: number;
-  referees?: string[];
+  referees?: number[]; // 🔹 IDs de árbitros (como números, no strings)
 }
 
 export interface Match {
@@ -76,7 +76,12 @@ async function createTournament(
   tournament: Omit<Tournament, "id">
 ): Promise<Tournament> {
   const token = getToken();
-  const response = await axios.post(API_URL, tournament, {
+  // 🔹 Asegurar que referees se manden como number[]
+  const payload = {
+    ...tournament,
+    referees: tournament.referees?.map(Number) || [],
+  };
+  const response = await axios.post(API_URL, payload, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return response.data;
@@ -88,7 +93,11 @@ async function updateTournament(
   updates: Partial<Tournament>
 ): Promise<Tournament> {
   const token = getToken();
-  const response = await axios.put(`${API_URL}/${id}`, updates, {
+  const payload = {
+    ...updates,
+    referees: updates.referees?.map(Number) || [],
+  };
+  const response = await axios.put(`${API_URL}/${id}`, payload, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return response.data;
@@ -138,5 +147,5 @@ export default {
   deleteTournament,
   getMatches,
   getStandings,
-  getReferees, // Exportar nuevo método
+  getReferees,
 };
