@@ -1,5 +1,7 @@
 /** @import must precede all other statements */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
+/* 🔹 Estilos base para react-day-picker */
+@import "react-day-picker/dist/style.css";
 
 @tailwind base;
 @tailwind components;
@@ -108,11 +110,6 @@
   }
 }
 
-
-
-/* 🔹 Estilos base para react-day-picker */
-@import "react-day-picker/dist/style.css";
-
 @layer base {
   .rdp {
     @apply p-3;
@@ -127,15 +124,20 @@
   }
 
   .rdp-table {
-    @apply w-full border-collapse space-y-1;
+    @apply w-full border-collapse;
   }
 
-  .rdp-head_row {
-    @apply flex justify-between;
+  /* ✅ Corrección para react-day-picker v9 */
+  .rdp-head {
+    @apply grid grid-cols-7 text-center;
+  }
+
+  .rdp-row {
+    @apply contents;
   }
 
   .rdp-head_cell {
-    @apply w-9 font-normal text-muted-foreground text-[0.8rem];
+    @apply font-normal text-muted-foreground text-[0.8rem];
   }
 
   .rdp-cell {
@@ -143,11 +145,15 @@
   }
 
   .rdp-day {
-    @apply h-9 w-9 p-0 font-normal rounded-md hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground;
+    @apply h-9 w-9 p-0 font-normal rounded-md 
+           hover:bg-accent hover:text-accent-foreground 
+           focus:bg-accent focus:text-accent-foreground;
   }
 
   .rdp-day_selected {
-    @apply bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground;
+    @apply bg-primary text-primary-foreground 
+           hover:bg-primary hover:text-primary-foreground 
+           focus:bg-primary focus:text-primary-foreground;
   }
 
   .rdp-day_today {
@@ -162,3 +168,4 @@
     @apply text-muted-foreground opacity-50 line-through cursor-not-allowed;
   }
 }
+

@@ -52,6 +52,15 @@ const formatMap: Record<string, string> = {
   Repechaje: "PLAY_OFF",
 };
 
+// 🔹 Props comunes para los calendarios
+const calendarCommonProps = {
+  locale: es,
+  classNames: {
+    day_outside: "text-gray-400 opacity-50 cursor-not-allowed",
+    day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100",
+  },
+};
+
 export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTournamentModalProps) {
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -151,11 +160,10 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
   const teamsRange = getTeamsRange(formData.format);
 
   function isBeforeToday(date: Date) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // normalizar
-  return date < today;
-}
-
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // normalizar
+    return date < today;
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -218,10 +226,7 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
                       setStartDateOpen(false);
                     }}
                     disabled={isBeforeToday}
-                    classNames={{
-                      day_outside: "text-gray-400 opacity-50 cursor-not-allowed", // 🔹 más claros
-                      day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100",   // 🔹 estilo base
-                    }}
+                    {...calendarCommonProps}
                     initialFocus
                   />
                 </PopoverContent>
@@ -262,6 +267,7 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
                       date < new Date() || 
                       (formData.startDate && date < formData.startDate)
                     }
+                    {...calendarCommonProps}
                     initialFocus
                   />
                 </PopoverContent>
