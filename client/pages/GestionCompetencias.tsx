@@ -29,6 +29,13 @@ const formatDate = (dateString: string) => {
   });
 };
 
+// 🔹 Mapa para traducir los formatos del backend
+const formatLabels: Record<string, string> = {
+  LEAGUE: 'Liga',
+  DIRECT_ELIMINATION: 'Eliminatoria',
+  PLAY_OFF: 'Repechaje',
+};
+
 export default function GestionCompetencias() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -128,7 +135,7 @@ export default function GestionCompetencias() {
                       <span>{tournament.teams} equipos</span>
                     </div>
                     <Badge variant="outline" className="text-xs">
-                      {tournament.format}
+                      {formatLabels[tournament.format] || tournament.format}
                     </Badge>
                   </div>
                 </CardContent>
