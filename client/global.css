@@ -107,3 +107,58 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+
+/* 🔹 Estilos base para react-day-picker */
+@import "react-day-picker/dist/style.css";
+
+@layer base {
+  .rdp {
+    @apply p-3;
+  }
+
+  .rdp-months {
+    @apply flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4;
+  }
+
+  .rdp-month {
+    @apply space-y-4;
+  }
+
+  .rdp-table {
+    @apply w-full border-collapse space-y-1;
+  }
+
+  .rdp-head_row {
+    @apply flex justify-between;
+  }
+
+  .rdp-head_cell {
+    @apply w-9 font-normal text-muted-foreground text-[0.8rem];
+  }
+
+  .rdp-cell {
+    @apply p-0 relative;
+  }
+
+  .rdp-day {
+    @apply h-9 w-9 p-0 font-normal rounded-md hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground;
+  }
+
+  .rdp-day_selected {
+    @apply bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground;
+  }
+
+  .rdp-day_today {
+    @apply font-bold border border-primary;
+  }
+
+  .rdp-day_outside {
+    @apply text-muted-foreground opacity-50;
+  }
+
+  .rdp-day_disabled {
+    @apply text-muted-foreground opacity-50 line-through cursor-not-allowed;
+  }
+}

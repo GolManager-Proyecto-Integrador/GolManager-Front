@@ -100,7 +100,7 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
         startDate: formData.startDate.toISOString().split('T')[0],
         endDate: formData.endDate.toISOString().split('T')[0],
         format: formatMap[formData.format], // 🔹 conversión aquí
-        teams: formData.teams,
+        numberOfTeams: formData.teams,
         roundTrip: formData.roundTrip,
         yellowCards: formData.yellowCards,
         referees: formData.referees.map(Number),
@@ -149,6 +149,13 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
   };
 
   const teamsRange = getTeamsRange(formData.format);
+
+  function isBeforeToday(date: Date) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // normalizar
+  return date < today;
+}
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -210,7 +217,11 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
                       setFormData(prev => ({ ...prev, startDate: date }));
                       setStartDateOpen(false);
                     }}
-                    disabled={(date) => date < new Date()}
+                    disabled={isBeforeToday}
+                    classNames={{
+                      day_outside: "text-gray-400 opacity-50 cursor-not-allowed", // 🔹 más claros
+                      day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100",   // 🔹 estilo base
+                    }}
                     initialFocus
                   />
                 </PopoverContent>
