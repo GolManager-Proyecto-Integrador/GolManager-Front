@@ -11,13 +11,14 @@ export interface Tournament {
   name: string;
   startDate: string;
   endDate: string;
-  status: "En curso" | "Finalizado" | "Pendiente";
-  teams: number;
+  status?: "En curso" | "Finalizado" | "Pendiente"; // ya no obligatorio, lo calculamos
+  numberOfTeams: number;  // <-- corregido
   format: string;
   roundTrip?: boolean;
   yellowCards?: number;
-  referees?: number[]; // 🔹 IDs de árbitros (como números, no strings)
+  referees?: number[];
 }
+
 
 export interface Match {
   id: string;

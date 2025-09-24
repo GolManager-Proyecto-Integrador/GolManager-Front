@@ -7,7 +7,7 @@ import { Plus, Calendar, Users, CalendarDays } from 'lucide-react';
 import { CreateTournamentModal } from '@/components/CreateTournamentModal';
 import gcompetenciaService, { Tournament } from '@/services/gcompetenciaService';
 
-const getStatusColor = (status: Tournament['status']) => {
+const getStatusColor = (status: "En curso" | "Finalizado" | "Pendiente") => {
   switch (status) {
     case 'En curso':
       return 'bg-green-100 text-green-800 hover:bg-green-100';
@@ -35,6 +35,17 @@ const formatLabels: Record<string, string> = {
   DIRECT_ELIMINATION: 'Eliminatoria',
   PLAY_OFF: 'Repechaje',
 };
+
+// 🔹 Función para calcular estatus basado en fechas
+function getTournamentStatus(startDate: string, endDate: string): "Pendiente" | "En curso" | "Finalizado" {
+  const today = new Date();
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (today < start) return "Pendiente";
+  if (today > end) return "Finalizado";
+  return "En curso";
+}
 
 export default function GestionCompetencias() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -102,55 +113,58 @@ export default function GestionCompetencias() {
           <div className="text-center py-12 text-gray-600">Cargando competencias...</div>
         ) : tournaments.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {tournaments.map((tournament) => (
-              <Card
-                key={tournament.id}
-                className="bg-white shadow-sm hover:shadow-md transition-shadow duration-200 border-0 rounded-xl"
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex justify-between items-start mb-2">
-                    <CardTitle className="text-lg font-semibold text-gray-900 line-clamp-2">
-                      {tournament.name}
-                    </CardTitle>
-                    <Badge 
-                      variant="secondary" 
-                      className={`ml-2 flex-shrink-0 ${getStatusColor(tournament.status)}`}
-                    >
-                      {tournament.status}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="pt-0 pb-4 space-y-3">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Calendar className="w-4 h-4 mr-2 text-primary" />
-                    <span>
-                      {formatDate(tournament.startDate)} - {formatDate(tournament.endDate)}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <div className="flex items-center">
-                      <Users className="w-4 h-4 mr-2 text-primary" />
-                      <span>{tournament.teams} equipos</span>
+            {tournaments.map((tournament) => {
+              const status = getTournamentStatus(tournament.startDate, tournament.endDate);
+              return (
+                <Card
+                  key={tournament.id}
+                  className="bg-white shadow-sm hover:shadow-md transition-shadow duration-200 border-0 rounded-xl"
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-start mb-2">
+                      <CardTitle className="text-lg font-semibold text-gray-900 line-clamp-2">
+                        {tournament.name}
+                      </CardTitle>
+                      <Badge 
+                        variant="secondary" 
+                        className={`ml-2 flex-shrink-0 ${getStatusColor(status)}`}
+                      >
+                        {status}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {formatLabels[tournament.format] || tournament.format}
-                    </Badge>
-                  </div>
-                </CardContent>
-                
-                <CardFooter className="pt-0">
-                  <Button
-                    variant="outline"
-                    className="w-full text-primary border-primary hover:bg-primary hover:text-white transition-colors"
-                    onClick={() => navigate(`/detalles-torneo/${tournament.id}`)}
-                  >
-                    Ver detalles
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
+                  </CardHeader>
+                  
+                  <CardContent className="pt-0 pb-4 space-y-3">
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Calendar className="w-4 h-4 mr-2 text-primary" />
+                      <span>
+                        {formatDate(tournament.startDate)} - {formatDate(tournament.endDate)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between text-sm text-gray-600">
+                      <div className="flex items-center">
+                        <Users className="w-4 h-4 mr-2 text-primary" />
+                        <span>{tournament.numberOfTeams} equipos</span>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {formatLabels[tournament.format] || tournament.format}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                  
+                  <CardFooter className="pt-0">
+                    <Button
+                      variant="outline"
+                      className="w-full text-primary border-primary hover:bg-primary hover:text-white transition-colors"
+                      onClick={() => navigate(`/detalles-torneo/${tournament.id}`)}
+                    >
+                      Ver detalles
+                    </Button>
+                  </CardFooter>
+                </Card>
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-12">
