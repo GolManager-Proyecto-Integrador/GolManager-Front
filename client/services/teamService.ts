@@ -1,25 +1,29 @@
 import axios from "axios";
 import { getToken } from "./authService";
 
-const API_URL = "http://localhost:8085/api/teams";
+const API_URL = "http://localhost:8085/api/tournaments";
 
 // Interfaces
 export interface Player {
-  id: string;
+  id?: string;              // opcional, lo genera backend
   name: string;
-  position: string;   // código del enum (ej: "PO")
+  position: string;         // código del enum (ej: "PO")
   dorsalNumber: number;
+  age?: number;             // según el swagger también lo pide
 }
 
 export interface Team {
-  id: string;
+  id?: string;
   name: string;
   coach: string;
   category: string;
   mainField: string;
-  secondaryField: string;
+  secondaryField?: string;
   players: Player[];
 }
+
+// Tipo auxiliar para creación de equipos (sin id)
+export type NewTeamData = Omit<Team, "id">;
 
 // 🔹 Posiciones según enum PlayerPosition.java
 export const positions = [
@@ -36,33 +40,37 @@ export const positions = [
 ];
 
 // Servicios API
-async function getTeams(): Promise<Team[]> {
+async function getTeams(idTournament: string): Promise<Team[]> {
+  if (!idTournament) throw new Error("El idTournament es requerido");
   const token = getToken();
-  const response = await axios.get(API_URL, {
+  const response = await axios.get(`${API_URL}/${idTournament}/teams`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return response.data;
 }
 
-async function createTeam(team: Omit<Team, "id">): Promise<Team> {
+async function createTeam(idTournament: string, team: NewTeamData): Promise<Team> {
+  if (!idTournament) throw new Error("El idTournament es requerido");
   const token = getToken();
-  const response = await axios.post(`${API_URL}/create`, team, {
+  const response = await axios.post(`${API_URL}/${idTournament}/teams`, team, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return response.data;
 }
 
-async function updateTeam(id: string, team: Partial<Team>): Promise<Team> {
+async function updateTeam(idTournament: string, teamId: string, team: Partial<Team>): Promise<Team> {
+  if (!idTournament || !teamId) throw new Error("idTournament y teamId son requeridos");
   const token = getToken();
-  const response = await axios.put(`${API_URL}/${id}`, team, {
+  const response = await axios.put(`${API_URL}/${idTournament}/teams/${teamId}`, team, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return response.data;
 }
 
-async function deleteTeam(id: string): Promise<void> {
+async function deleteTeam(idTournament: string, teamId: string): Promise<void> {
+  if (!idTournament || !teamId) throw new Error("idTournament y teamId son requeridos");
   const token = getToken();
-  await axios.delete(`${API_URL}/${id}`, {
+  await axios.delete(`${API_URL}/${idTournament}/teams/${teamId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 }

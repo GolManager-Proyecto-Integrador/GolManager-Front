@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +31,9 @@ interface NewTeamData {
 
 export default function TeamManagement() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const idTournament = location.state?.idTournament as string;
+
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -53,9 +56,10 @@ export default function TeamManagement() {
 
   // 🔹 Cargar equipos desde el backend
   const fetchTeams = async () => {
+    if (!idTournament) return;
     try {
       setLoading(true);
-      const data = await teamService.getTeams();
+      const data = await teamService.getTeams(idTournament);
       setTeams(data);
     } catch (error) {
       console.error("Error cargando equipos:", error);
@@ -66,10 +70,10 @@ export default function TeamManagement() {
 
   useEffect(() => {
     fetchTeams();
-  }, []);
+  }, [idTournament]);
 
   const handleTeamClick = (teamId: string) => {
-    navigate(`/teams-manage/${teamId}`);
+    navigate(`/teams-manage/${teamId}`, { state: { idTournament } });
   };
 
   const handleInputChange = (field: keyof NewTeamData, value: string) => {
@@ -126,9 +130,9 @@ export default function TeamManagement() {
 
   // 🔹 Guardar en backend
   const handleSaveTeam = async () => {
-    if (validateForm()) {
+    if (validateForm() && idTournament) {
       try {
-        await teamService.createTeam(newTeam);
+        await teamService.createTeam(idTournament, newTeam);
         fetchTeams(); // refrescar lista
         resetForm();
         setIsModalOpen(false);

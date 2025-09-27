@@ -9,13 +9,15 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import DashboardOrganizador from "./pages/DashboardOrganizador";
-import ListaTorneos from "./pages/ListaTorneos";
-import DetallesTorneo from "./pages/DetallesTorneo";
+import ListaTorneosPublic from "./pages/ListaTorneosPublic";
+import DetallesTorneoPublic from "./pages/DetallesTorneoPublic";
 import TeamManagement from "./pages/TeamManagement";
 import CalendarioPartidos from "./pages/CalendarioPartidos";
 import GestionCompetencias from "./pages/GestionCompetencias";
+import GestionDetallesTorneo from "./pages/GestionDetallesTorneo";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Unauthorized from "./pages/Unauthorized"; 
+import ReglasTorneo from "./pages/ReglasTorneo";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +31,8 @@ const App = () => (
           {/* Rutas públicas */}
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/torneo/:id" element={<DetallesTorneoPublic/>} />
+          <Route path="/lista-torneos" element={<ListaTorneosPublic/>} />
           <Route path="/unauthorized" element={<Unauthorized />} />
 
           {/* Solo organizadores (USER) */}
@@ -42,22 +46,22 @@ const App = () => (
           />
 
           <Route
-            path="/lista-torneos"
+            /*path="/lista-torneos"
             element={
               <ProtectedRoute role="USER">
                 <ListaTorneos />
               </ProtectedRoute>
-            }
+            }*/
           />
 
           <Route
-            path="//torneo/:id"   //Verificar id del Backend
+            /*path="//torneo/:id"   //Verificar id del Backend
             element={
               <ProtectedRoute role="USER">
                 <DetallesTorneo />
               </ProtectedRoute>
-            }
-          />
+            }*/
+          /> 
 
           <Route
             path="/teams-manage"
@@ -82,6 +86,24 @@ const App = () => (
             element={
               <ProtectedRoute role="USER">
                 <GestionCompetencias />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/detalles-torneo/:id"
+            element={
+              <ProtectedRoute role="USER">
+                <GestionDetallesTorneo />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/tournament/:id/reglas-competencias"
+            element={
+              <ProtectedRoute role="USER">
+                <ReglasTorneo />
               </ProtectedRoute>
             }
           />
