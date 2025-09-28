@@ -103,12 +103,10 @@ export default function TeamManagement() {
     }
   };
 
-  const handleRemovePlayer = (playerId?: string, dorsalNumber?: number) => {
+  const handleRemovePlayer = (playerId: string) => {
     setNewTeam(prev => ({
       ...prev,
-      players: prev.players.filter(
-        p => p.id !== playerId && p.dorsalNumber !== dorsalNumber
-      )
+      players: prev.players.filter(p => p.id !== playerId)
     }));
     validateForm();
   };
@@ -345,12 +343,7 @@ export default function TeamManagement() {
                             <p className="text-sm text-gray-500">{player.position}</p>
                           </div>
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => handleRemovePlayer(player.id, player.dorsalNumber)} 
-                          className="text-red-600"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => handleRemovePlayer(player.id!)} className="text-red-600">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>

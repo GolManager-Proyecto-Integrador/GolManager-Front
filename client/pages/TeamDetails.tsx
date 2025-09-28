@@ -412,4 +412,7 @@ export default function TeamDetails() {
       </div>
     </div>
   );
-}
+}   
+
+
+
