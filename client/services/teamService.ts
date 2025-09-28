@@ -39,32 +39,65 @@ export const positions = [
   { label: "Extremo derecho", value: "ED" },
 ];
 
-// Servicios API
+//
+// 🔹 Mapeos entre API y Frontend
+//
+function mapTeamFromApi(apiTeam: any): Team {
+  return {
+    id: apiTeam.id,
+    name: apiTeam.teamName,
+    coach: apiTeam.coachName,
+    category: apiTeam.teamCategory,
+    mainField: apiTeam.mainStadium,
+    secondaryField: apiTeam.secondaryField || "",
+    players: apiTeam.players || [],
+  };
+}
+
+function mapTeamToApi(team: Partial<Team>) {
+  return {
+    id: team.id,
+    teamName: team.name,
+    coachName: team.coach,
+    teamCategory: team.category,
+    mainStadium: team.mainField,
+    secondaryField: team.secondaryField,
+    players: team.players,
+  };
+}
+
+//
+// 🔹 Servicios API
+//
 async function getTeams(idTournament: string): Promise<Team[]> {
   if (!idTournament) throw new Error("El idTournament es requerido");
   const token = getToken();
   const response = await axios.get(`${API_URL}/${idTournament}/teams`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  return response.data;
+  return response.data.map((t: any) => mapTeamFromApi(t));
 }
 
 async function createTeam(idTournament: string, team: NewTeamData): Promise<Team> {
   if (!idTournament) throw new Error("El idTournament es requerido");
   const token = getToken();
-  const response = await axios.post(`${API_URL}/${idTournament}/teams`, team, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return response.data;
+  const response = await axios.post(
+    `${API_URL}/${idTournament}/teams`,
+    mapTeamToApi(team),
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return mapTeamFromApi(response.data);
 }
 
 async function updateTeam(idTournament: string, teamId: string, team: Partial<Team>): Promise<Team> {
   if (!idTournament || !teamId) throw new Error("idTournament y teamId son requeridos");
   const token = getToken();
-  const response = await axios.put(`${API_URL}/${idTournament}/teams/${teamId}`, team, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return response.data;
+  const response = await axios.put(
+    `${API_URL}/${idTournament}/teams/${teamId}`,
+    mapTeamToApi(team),
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return mapTeamFromApi(response.data);
 }
 
 async function deleteTeam(idTournament: string, teamId: string): Promise<void> {
