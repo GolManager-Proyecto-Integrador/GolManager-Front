@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,26 +20,21 @@ const categories = [
   { value: 'libre', label: 'Libre' }
 ];
 
-interface NewTeamData {
-  name: string;
-  coach: string;
-  category: string;
-  mainField: string;
-  secondaryField: string;
-  players: Player[];
-}
-
 export default function TeamManagement() {
   const navigate = useNavigate();
   const location = useLocation();
-  const idTournament = location.state?.idTournament as string;
+  const { idTournament: idFromParams } = useParams<{ idTournament: string }>();
+
+  // ✅ Soporta state o parámetros de URL
+  const idTournament = location.state?.idTournament || idFromParams;
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-  
-  const [newTeam, setNewTeam] = useState<NewTeamData>({
+
+  // ✅ usamos Omit<Team, "id"> para equipos nuevos
+  const [newTeam, setNewTeam] = useState<Omit<Team, "id">>({
     name: '',
     coach: '',
     category: '',
@@ -73,10 +68,10 @@ export default function TeamManagement() {
   }, [idTournament]);
 
   const handleTeamClick = (teamId: string) => {
-    navigate(`/teams-manage/${teamId}`, { state: { idTournament } });
+    navigate(`/team/${teamId}`, { state: { idTournament } });
   };
 
-  const handleInputChange = (field: keyof NewTeamData, value: string) => {
+  const handleInputChange = (field: keyof Omit<Team, "id">, value: string) => {
     setNewTeam(prev => ({ ...prev, [field]: value }));
     validateForm();
   };
@@ -91,8 +86,8 @@ export default function TeamManagement() {
         return;
       }
 
-      const player: Player = {
-        id: Date.now().toString(),
+      // ⚡ Nuevo jugador sin id (lo genera el backend)
+      const player: Omit<Player, "id"> = {
         name: newPlayer.name,
         position: newPlayer.position,
         dorsalNumber: dorsalNum
@@ -100,7 +95,7 @@ export default function TeamManagement() {
 
       setNewTeam(prev => ({
         ...prev,
-        players: [...prev.players, player]
+        players: [...prev.players, player as Player]
       }));
 
       setNewPlayer({ name: '', position: '', dorsalNumber: '' });
@@ -122,7 +117,6 @@ export default function TeamManagement() {
     if (!newTeam.coach) newErrors.push('El director técnico es obligatorio');
     if (!newTeam.category) newErrors.push('La categoría es obligatoria');
     if (!newTeam.mainField) newErrors.push('La cancha principal es obligatoria');
-    if (!newTeam.secondaryField) newErrors.push('La cancha secundaria es obligatoria');
     if (newTeam.players.length < 11) newErrors.push('Debe haber mínimo 11 jugadores');
     setErrors(newErrors);
     return newErrors.length === 0;
@@ -132,8 +126,9 @@ export default function TeamManagement() {
   const handleSaveTeam = async () => {
     if (validateForm() && idTournament) {
       try {
-        await teamService.createTeam(idTournament, newTeam);
-        fetchTeams(); // refrescar lista
+        const created = await teamService.createTeam(idTournament, newTeam);
+        // ✅ actualiza estado local en lugar de recargar todo
+        setTeams(prev => [...prev, created]);
         resetForm();
         setIsModalOpen(false);
       } catch (error) {
@@ -165,7 +160,6 @@ export default function TeamManagement() {
     newTeam.coach.trim() !== "" &&
     newTeam.category.trim() !== "" &&
     newTeam.mainField.trim() !== "" &&
-    newTeam.secondaryField.trim() !== "" &&
     newTeam.players.length >= 11;
 
   return (
@@ -279,7 +273,7 @@ export default function TeamManagement() {
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="secondaryField">Cancha Secundaria *</Label>
+                    <Label htmlFor="secondaryField">Cancha Secundaria (opcional)</Label>
                     <Input
                       id="secondaryField"
                       value={newTeam.secondaryField}
@@ -339,7 +333,7 @@ export default function TeamManagement() {
 
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {newTeam.players.map(player => (
-                      <div key={player.id} className="flex justify-between p-3 bg-gray-50 rounded-lg">
+                      <div key={player.dorsalNumber} className="flex justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center space-x-4">
                           <div className="w-8 h-8 flex items-center justify-center bg-primary text-white rounded-full">
                             {player.dorsalNumber}
@@ -349,7 +343,7 @@ export default function TeamManagement() {
                             <p className="text-sm text-gray-500">{player.position}</p>
                           </div>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => handleRemovePlayer(player.id)} className="text-red-600">
+                        <Button variant="ghost" size="sm" onClick={() => handleRemovePlayer(player.id!)} className="text-red-600">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -386,7 +380,7 @@ export default function TeamManagement() {
                 {teams.map(team => (
                   <Card 
                     key={team.id}
-                    onClick={() => handleTeamClick(team.id)}
+                    onClick={() => handleTeamClick(team.id!)}
                     className="cursor-pointer hover:shadow-lg transition-all duration-200"
                   >
                     <CardHeader>

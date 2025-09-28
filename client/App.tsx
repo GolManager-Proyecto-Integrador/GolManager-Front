@@ -15,9 +15,12 @@ import TeamManagement from "./pages/TeamManagement";
 import CalendarioPartidos from "./pages/CalendarioPartidos";
 import GestionCompetencias from "./pages/GestionCompetencias";
 import GestionDetallesTorneo from "./pages/GestionDetallesTorneo";
+import ReglasTorneo from "./pages/ReglasTorneo";
+import Teams from "./pages/Teams";
+import TeamDetails from "./pages/TeamDetails";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Unauthorized from "./pages/Unauthorized"; 
-import ReglasTorneo from "./pages/ReglasTorneo";
+
 
 const queryClient = new QueryClient();
 
@@ -106,6 +109,25 @@ const App = () => (
                 <ReglasTorneo />
               </ProtectedRoute>
             }
+          />
+
+          <Route
+            path="/teams"
+            element={
+              <ProtectedRoute role="USER">
+                <Teams />
+              </ProtectedRoute>
+            }
+          />
+
+
+          <Route
+            path="/team/:id"
+            element={
+             <ProtectedRoute role="USER">
+              <TeamDetails />
+            </ProtectedRoute>
+           }
           />
 
           {/* Solo Admin (ADMIN) */}
