@@ -27,6 +27,19 @@ export interface Team {
   players: Player[];
 }
 
+// 🔹 Mapear respuesta del backend → modelo frontend
+function mapTeamResponse(data: any): Team {
+  return {
+    id: data.id,
+    name: data.teamName,              // backend → frontend
+    coach: data.coachName,            // backend → frontend
+    category: data.category,
+    mainField: data.mainFieldName,    // backend → frontend
+    secondaryField: data.secondaryFieldName,
+    players: data.players || [],
+  };
+}
+
 // 🔹 Obtener detalle de un equipo específico
 export async function getTeamDetails(
   idTournament: string,
@@ -37,7 +50,7 @@ export async function getTeamDetails(
     `${API_URL}/${idTournament}/teams/${teamId}`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
-  return response.data;
+  return mapTeamResponse(response.data);
 }
 
 // 🔹 Actualizar equipo (información general + jugadores)
@@ -52,7 +65,7 @@ export async function updateTeamDetails(
     team,
     { headers: { Authorization: `Bearer ${token}` } }
   );
-  return response.data;
+  return mapTeamResponse(response.data);
 }
 
 export default {

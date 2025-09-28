@@ -14,10 +14,10 @@ export interface Player {
 
 export interface Team {
   id?: string;
-  name: string;
-  coach: string;
-  category: string;
-  mainField: string;
+  name: string;             // 🔹 frontend siempre usa "name"
+  coach: string;            // 🔹 frontend siempre usa "coach"
+  category: string;         // 🔹 frontend siempre usa "category"
+  mainField: string;        // 🔹 frontend siempre usa "mainField"
   secondaryField?: string;
   players: Player[];
 }
@@ -39,6 +39,38 @@ export const positions = [
   { label: "Extremo derecho", value: "ED" },
 ];
 
+// 🔄 Mapper: Backend → Frontend
+function mapTeamFromApi(t: any): Team {
+  return {
+    id: t.id,
+    name: t.teamName,
+    coach: t.coachName,
+    category: t.teamCategory,
+    mainField: t.mainStadium,
+    secondaryField: t.secondaryField,
+    players: t.players || [],
+  };
+}
+
+// 🔄 Mapper: Frontend → Backend
+function mapTeamToApi(team: NewTeamData | Partial<Team>) {
+  const payload: any = {
+    teamName: team.name,
+    coachName: team.coach,
+    teamCategory: team.category,
+    mainStadium: team.mainField,
+    secondaryField: team.secondaryField,
+    players: team.players,
+  };
+
+  if ("id" in team && team.id) {
+    payload.id = team.id;
+  }
+
+  return payload;
+}
+
+
 // Servicios API
 async function getTeams(idTournament: string): Promise<Team[]> {
   if (!idTournament) throw new Error("El idTournament es requerido");
@@ -46,25 +78,32 @@ async function getTeams(idTournament: string): Promise<Team[]> {
   const response = await axios.get(`${API_URL}/${idTournament}/teams`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  return response.data;
+
+  return response.data.map(mapTeamFromApi);
 }
 
 async function createTeam(idTournament: string, team: NewTeamData): Promise<Team> {
   if (!idTournament) throw new Error("El idTournament es requerido");
   const token = getToken();
-  const response = await axios.post(`${API_URL}/${idTournament}/teams`, team, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return response.data;
+  const response = await axios.post(
+    `${API_URL}/${idTournament}/teams`,
+    mapTeamToApi(team),
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  return mapTeamFromApi(response.data);
 }
 
 async function updateTeam(idTournament: string, teamId: string, team: Partial<Team>): Promise<Team> {
   if (!idTournament || !teamId) throw new Error("idTournament y teamId son requeridos");
   const token = getToken();
-  const response = await axios.put(`${API_URL}/${idTournament}/teams/${teamId}`, team, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return response.data;
+  const response = await axios.put(
+    `${API_URL}/${idTournament}/teams/${teamId}`,
+    mapTeamToApi(team),
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  return mapTeamFromApi(response.data);
 }
 
 async function deleteTeam(idTournament: string, teamId: string): Promise<void> {
@@ -81,3 +120,4 @@ export default {
   updateTeam,
   deleteTeam,
 };
+
