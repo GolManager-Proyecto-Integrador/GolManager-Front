@@ -68,7 +68,7 @@ export default function TeamManagement() {
   }, [idTournament]);
 
   const handleTeamClick = (teamId: string) => {
-    navigate(`/team/${teamId}`, { state: { idTournament } });
+    navigate(`/tournament/${idTournament}/team/${teamId}`);
   };
 
   const handleInputChange = (field: keyof Omit<Team, "id">, value: string) => {

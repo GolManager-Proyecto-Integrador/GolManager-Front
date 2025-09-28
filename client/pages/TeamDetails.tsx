@@ -1,4 +1,3 @@
-// src/pages/TeamDetails.tsx
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -50,10 +49,12 @@ const getStatusColor = (status?: Player["status"]) => {
 };
 
 export default function TeamDetails() {
-  const { id: tournamentId, teamId } = useParams<{
-    id: string;
+  // 👇 Ahora obtenemos ambos ids desde la URL
+  const { idTournament, teamId } = useParams<{
+    idTournament: string;
     teamId: string;
   }>();
+
   const navigate = useNavigate();
 
   const [team, setTeam] = useState<Team | null>(null);
@@ -64,8 +65,8 @@ export default function TeamDetails() {
   useEffect(() => {
     const fetchTeam = async () => {
       try {
-        if (!tournamentId || !teamId) return;
-        const data = await getTeamDetails(tournamentId, teamId);
+        if (!idTournament || !teamId) return;
+        const data = await getTeamDetails(idTournament, teamId);
         setTeam(data);
         setPlayers(data.players || []);
       } catch (error) {
@@ -75,7 +76,7 @@ export default function TeamDetails() {
       }
     };
     fetchTeam();
-  }, [tournamentId, teamId]);
+  }, [idTournament, teamId]);
 
   const handlePlayerRoleChange = (playerId: string, newRole: string) => {
     setPlayers((prev) =>
@@ -96,9 +97,9 @@ export default function TeamDetails() {
   };
 
   const handleEditTeam = async () => {
-    if (!tournamentId || !teamId || !team) return;
+    if (!idTournament || !teamId || !team) return;
     try {
-      const updated = await updateTeamDetails(tournamentId, teamId, {
+      const updated = await updateTeamDetails(idTournament, teamId, {
         ...team,
         players,
       });
@@ -110,7 +111,8 @@ export default function TeamDetails() {
   };
 
   const handleBackToTournament = () => {
-    navigate("/teams-manage");
+    if (!idTournament) return;
+    navigate(`/tournament/${idTournament}/teams-manage`);
   };
 
   if (loading) {

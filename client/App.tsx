@@ -67,13 +67,14 @@ const App = () => (
           /> 
 
           <Route
-            path="/teams-manage"
+            path="/tournament/:idTournament/teams-manage"
             element={
               <ProtectedRoute role="USER">
                 <TeamManagement />
               </ProtectedRoute>
             }
           />
+
 
           <Route
             path="/calendario"
@@ -112,7 +113,7 @@ const App = () => (
           />
 
           <Route
-            path="/teams"
+            path="/tournament/:idTournament/teams"
             element={
               <ProtectedRoute role="USER">
                 <Teams />
@@ -122,7 +123,7 @@ const App = () => (
 
 
           <Route
-            path="/team/:id"
+            path="/tournament/:idTournament/team/:teamId"
             element={
              <ProtectedRoute role="USER">
               <TeamDetails />
