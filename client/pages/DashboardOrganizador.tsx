@@ -60,11 +60,11 @@ export default function Dashboard() {
       )}
 
       {/* Sidebar */}
-      <aside className={`
-        fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-50 transform transition-transform duration-200 ease-in-out
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0 lg:relative lg:w-64 lg:flex-shrink-0
-      `}>
+        <aside className={`
+          fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-50 transform transition-transform duration-200 ease-in-out
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0
+        `}>
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -119,7 +119,7 @@ export default function Dashboard() {
       </aside>
 
       {/* Main Content */}
-      <div className="lg:ml-0 flex-1">
+      <div className="lg:ml-64 flex-1">
         <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
           <div className="px-6 py-4">
             <div className="flex items-center justify-between">

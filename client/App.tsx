@@ -63,7 +63,7 @@ const App = () => (
               <ProtectedRoute role="USER">
                 <DetallesTorneo />
               </ProtectedRoute>
-            }*/
+            }*/ 
           /> 
 
           <Route

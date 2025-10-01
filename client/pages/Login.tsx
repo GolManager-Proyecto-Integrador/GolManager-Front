@@ -168,20 +168,6 @@ export default function Login() {
           </CardContent>
         </Card>
 
-        {/* Demo Credentials */}
-        <div className="mt-6 bg-gray-100 border border-gray-300 rounded-lg p-4">
-          <div className="text-center">
-            <h4 className="font-medium text-gray-900 mb-2">
-              Credenciales de prueba
-            </h4>
-            <p className="text-gray-700 text-sm">
-              <strong>Admin:</strong> admin@torneos.com / admin123
-              <br />
-              <strong>Organizador:</strong> organizador@torneos.com / organizador123
-            </p>
-          </div>
-        </div>
-
         {/* Footer */}
         <div className="text-center mt-8 text-gray-500 text-sm">
           <p>Sistema de Gestión de Torneos de Fútbol v1.0</p>
