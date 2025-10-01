@@ -14,11 +14,19 @@ import teamService, { Team, Player, positions } from '@/services/teamService';
 
 // 🔹 Categorías locales
 const categories = [
-  { value: 'sub-15', label: 'Sub-15' },
-  { value: 'sub-17', label: 'Sub-17' },
-  { value: 'sub-20', label: 'Sub-20' },
-  { value: 'libre', label: 'Libre' }
+  { value: 'SUB13', label: 'Sub-13' },
+  { value: 'SUB14', label: 'Sub-14' },
+  { value: 'SUB15', label: 'Sub-15' },
+  { value: 'SUB16', label: 'Sub-16' },
+  { value: 'SUB17', label: 'Sub-17' },
+  { value: 'SUB18', label: 'Sub-18' },
+  { value: 'SUB19', label: 'Sub-19' },
+  { value: 'SUB20', label: 'Sub-20' },
+  { value: 'SUB21', label: 'Sub-21' },
+  { value: 'PROFESSIONAL', label: 'Profesional' },
+  { value: 'VETERAN', label: 'Veteranos' }
 ];
+
 
 export default function TeamManagement() {
   const navigate = useNavigate();

@@ -185,7 +185,7 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
             </Label>
             <Input
               id="name"
-              placeholder="Ej: Liga Nacional de Fútbol 2024"
+              placeholder="Ej: Liga Nacional de Fútbol 2025"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               className="w-full"

@@ -43,8 +43,8 @@ export default function Dashboard() {
   }, []);
 
   const navigationItems = [
-    { icon: LayoutGrid, label: "Dashboard", href: "/dashboard", active: true }, //HECHA
-    { icon: Trophy, label: "Torneos", href: "/lista-torneos" },                 //HECHA
+    { icon: LayoutGrid, label: "Dashboard", href: "/dashboard-organizador", active: true }, //HECHA
+    { icon: Trophy, label: "Torneos", href: "/gestion-competencias" },                 //HECHA
     { icon: Users, label: "Equipos y jugadores", href: "/teams-manage" },       //HECHA
     { icon: Calendar, label: "Calendario", href: "/calendario" },               //HECHA
     { icon: BarChart3, label: "Resultados y posiciones", href: "/resultados" },
@@ -170,7 +170,7 @@ export default function Dashboard() {
                 style={{ backgroundColor: '#007BFF' }}
               >
                 <Plus className="w-6 h-6 mr-3" />
-                Crear nuevo torneo
+                Crear nueva competencia
               </Button>
             </Link>
           </div>
