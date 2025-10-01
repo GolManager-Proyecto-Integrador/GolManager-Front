@@ -158,7 +158,7 @@ export default function GestionCompetencias() {
                       variant="outline"
                       className="w-full text-primary border-primary hover:bg-primary hover:text-white transition-colors"
                       //onClick={() => navigate(`/detalles-torneo/${tournament.id}`)}
-                      onClick={() => navigate(`tournament/:idTournament/teams-manage`)}
+                      onClick={() => navigate(`tournament/${tournament.id}/teams-manage`)}
                     >
                       Ver detalles
                     </Button>
