@@ -45,24 +45,36 @@ export const positions = [
 function mapTeamFromApi(apiTeam: any): Team {
   return {
     id: apiTeam.id,
-    name: apiTeam.teamName,
-    coach: apiTeam.coachName,
+    name: apiTeam.name, // backend lo devuelve como "name"
+    coach: apiTeam.coach, // backend lo devuelve como "coach"
     category: apiTeam.teamCategory,
     mainField: apiTeam.mainStadium,
-    secondaryField: apiTeam.secondaryField || "",
-    players: apiTeam.players || [],
+    secondaryField: apiTeam.secondaryStadium || "",
+    players: (apiTeam.teamPlayers || []).map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      position: p.playerPosition,
+      dorsalNumber: p.shirtNumber,
+      age: p.age,
+    })),
   };
 }
 
 function mapTeamToApi(team: Partial<Team>) {
   return {
     id: team.id,
-    teamName: team.name,
-    coachName: team.coach,
+    name: team.name, // backend espera "name"
+    coach: team.coach, // backend espera "coach"
     teamCategory: team.category,
     mainStadium: team.mainField,
-    secondaryField: team.secondaryField,
-    players: team.players,
+    secondaryStadium: team.secondaryField,
+    teamPlayers: team.players?.map(p => ({
+      id: p.id,
+      name: p.name,
+      playerPosition: p.position,
+      shirtNumber: p.dorsalNumber,
+      age: p.age || 0, // por si no lo capturas en el form
+    })),
   };
 }
 

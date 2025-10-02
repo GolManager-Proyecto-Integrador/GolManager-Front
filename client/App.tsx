@@ -68,7 +68,7 @@ const App = () => (
 
           <Route
             path="/gestion-competencias/tournament/:idTournament/teams-manage"
-            //path="/gestion-competencias/tournament/${tournament.id}/teams-manage"
+            //path="/tournament/:idTournament/teams-manage"
             element={
               <ProtectedRoute role="USER">
                 <TeamManagement />
