@@ -54,7 +54,8 @@ export default function TeamManagement() {
   const [newPlayer, setNewPlayer] = useState({
     name: '',
     position: '',
-    dorsalNumber: ''
+    dorsalNumber: '',
+    age: undefined as number | undefined
   });
 
   // 🔹 Cargar equipos desde el backend
@@ -98,7 +99,8 @@ export default function TeamManagement() {
       const player: Omit<Player, "id"> = {
         name: newPlayer.name,
         position: newPlayer.position,
-        dorsalNumber: dorsalNum
+        dorsalNumber: dorsalNum,
+        age: newPlayer.age // ✅ opcional
       };
 
       setNewTeam(prev => ({
@@ -106,7 +108,7 @@ export default function TeamManagement() {
         players: [...prev.players, player as Player]
       }));
 
-      setNewPlayer({ name: '', position: '', dorsalNumber: '' });
+      setNewPlayer({ name: '', position: '', dorsalNumber: '', age: undefined });
       validateForm();
     }
   };
@@ -154,7 +156,7 @@ export default function TeamManagement() {
       secondaryField: '',
       players: []
     });
-    setNewPlayer({ name: '', position: '', dorsalNumber: '' });
+    setNewPlayer({ name: '', position: '', dorsalNumber: '', age: undefined });
     setErrors([]);
   };
 
@@ -299,7 +301,7 @@ export default function TeamManagement() {
                       <CardTitle className="text-sm font-medium">Agregar Jugador</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                         <div>
                           <Label>Nombre *</Label>
                           <Input
@@ -330,12 +332,23 @@ export default function TeamManagement() {
                             onChange={(e) => setNewPlayer(prev => ({ ...prev, dorsalNumber: e.target.value }))}
                           />
                         </div>
+                        <div>
+                          <Label>Edad (opcional)</Label>
+                          <Input
+                            type="number"
+                            min="5"
+                            max="60"
+                            value={newPlayer.age ?? ""}
+                            onChange={(e) => setNewPlayer(prev => ({ ...prev, age: e.target.value ? Number(e.target.value) : undefined }))}
+                          />
+                        </div>
                         <div className="flex items-end">
                           <Button onClick={handleAddPlayer} disabled={!newPlayer.name || !newPlayer.position || !newPlayer.dorsalNumber}>
                             <Plus className="w-4 h-4 mr-2" /> Agregar
                           </Button>
                         </div>
                       </div>
+
                     </CardContent>
                   </Card>
 
