@@ -45,8 +45,8 @@ export const positions = [
 function mapTeamFromApi(apiTeam: any): Team {
   return {
     id: apiTeam.id,
-    name: apiTeam.name, // backend lo devuelve como "name"
-    coach: apiTeam.coach, // backend lo devuelve como "coach"
+    name: apiTeam.teamName,      
+    coach: apiTeam.coachName,    
     category: apiTeam.teamCategory,
     mainField: apiTeam.mainStadium,
     secondaryField: apiTeam.secondaryStadium || "",
@@ -63,8 +63,8 @@ function mapTeamFromApi(apiTeam: any): Team {
 function mapTeamToApi(team: Partial<Team>) {
   return {
     id: team.id,
-    name: team.name, // backend espera "name"
-    coach: team.coach, // backend espera "coach"
+    teamName: team.name,      
+    coachName: team.coach,
     teamCategory: team.category,
     mainStadium: team.mainField,
     secondaryStadium: team.secondaryField,
@@ -73,7 +73,7 @@ function mapTeamToApi(team: Partial<Team>) {
       name: p.name,
       playerPosition: p.position,
       shirtNumber: p.dorsalNumber,
-      age: p.age || 0, // por si no lo capturas en el form
+      age: p.age || 0, // por si no lo captura el form
     })),
   };
 }
