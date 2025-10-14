@@ -20,6 +20,7 @@ import Teams from "./pages/Teams";
 import TeamDetails from "./pages/TeamDetails";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Unauthorized from "./pages/Unauthorized"; 
+import DashboardAdmin from "./pages/DashboardAdmin";
 
 
 const queryClient = new QueryClient();
@@ -67,8 +68,8 @@ const App = () => (
           /> 
 
           <Route
-            path="/gestion-competencias/tournament/:idTournament/teams-manage"
-            //path="/tournament/:idTournament/teams-manage"
+            //path="/gestion-competencias/tournament/:idTournament/teams-manage"
+            path="/tournament/:idTournament/teams-manage"
             element={
               <ProtectedRoute role="USER">
                 <TeamManagement />
@@ -132,15 +133,15 @@ const App = () => (
            }
           />
 
-          {/* Solo Admin (ADMIN) */}
-          {/* <Route
+          <Route
             path="/admin-dashboard"
             element={
               <ProtectedRoute role="ADMIN">
-                <AdminDashboard />
+                <DashboardAdmin />
               </ProtectedRoute>
             }
-          /> */}
+          /> 
+          
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
