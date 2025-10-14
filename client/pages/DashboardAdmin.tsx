@@ -125,12 +125,12 @@ export default function AdminDashboard() {
                   Administrador
                 </p>
                 <p className="text-base font-semibold text-gray-900">
-                  Isabel C. Garzón
+                  Mateo Vargas
                 </p>
               </div>
               <Avatar className="h-12 w-12 border border-primary/10">
                 <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">
-                  IG
+                  MV
                 </AvatarFallback>
               </Avatar>
             </div>
@@ -157,14 +157,6 @@ export default function AdminDashboard() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
-          </section>
-
-          <section>
-            <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-100 py-12 text-center shadow-inner">
-              <p className="text-lg font-semibold text-gray-800">
-                📊 Gráficos de rendimiento próximamente
-              </p>
             </div>
           </section>
         </div>
