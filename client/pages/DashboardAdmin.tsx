@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,60 +9,91 @@ import {
   FileText,
   LogOut,
   Trophy,
-  Shield
+  Shield,
+  AlertTriangle,
 } from "lucide-react";
-
-const summaryMetrics = [
-  {
-    id: "organizers",
-    label: "Organizadores registrados",
-    value: 25,
-    description: "Registrados actualmente",
-    icon: Users,
-    accent: "bg-blue-100 text-blue-600"
-  },
-  {
-    id: "tournaments",
-    label: "Torneos creados",
-    value: 12,
-    description: "Creados en el sistema",
-    icon: Trophy,
-    accent: "bg-purple-100 text-purple-600"
-  },
-  {
-    id: "teams",
-    label: "Equipos registrados",
-    value: 64,
-    description: "Equipos activos",
-    icon: Shield,
-    accent: "bg-emerald-100 text-emerald-600"
-  }
-];
-
-const navigationLinks = [
-  {
-    id: "dashboard",
-    label: "Dashboard",
-    path: "/admin-dashboard",
-    icon: LayoutDashboard,
-    active: true
-  },
-  {
-    id: "organizers",
-    label: "Organizadores",
-    path: "/organizers",
-    icon: Users
-  },
-  {
-    id: "reports",
-    label: "Reportes",
-    path: "/reporte-sistema",
-    icon: FileText
-  }
-];
+import { dashboardService } from "@/services/admdashboardService";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const [dashboardData, setDashboardData] = useState({
+    userName: "Cargando...",
+    numOrganizers: 0,
+    numTournaments: 0,
+    numTeams: 0,
+  });
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setError("⚠️ No se encontró el token de autenticación");
+          navigate("/login");
+          return;
+        }
+
+        const data = await dashboardService.getDashboardData(token);
+        setDashboardData(data);
+      } catch (err: any) {
+        setError(
+          `⚠️ ${err.messages || err.error || "Error al cargar el dashboard"}`
+        );
+      }
+    };
+
+    fetchDashboard();
+  }, [navigate]);
+
+  const summaryMetrics = [
+    {
+      id: "organizers",
+      label: "Organizadores registrados",
+      value: dashboardData.numOrganizers,
+      description: "Registrados actualmente",
+      icon: Users,
+      accent: "bg-blue-100 text-blue-600",
+    },
+    {
+      id: "tournaments",
+      label: "Torneos creados",
+      value: dashboardData.numTournaments,
+      description: "Creados en el sistema",
+      icon: Trophy,
+      accent: "bg-purple-100 text-purple-600",
+    },
+    {
+      id: "teams",
+      label: "Equipos registrados",
+      value: dashboardData.numTeams,
+      description: "Equipos activos",
+      icon: Shield,
+      accent: "bg-emerald-100 text-emerald-600",
+    },
+  ];
+
+  const navigationLinks = [
+    {
+      id: "dashboard",
+      label: "Dashboard",
+      path: "/admin-dashboard",
+      icon: LayoutDashboard,
+      active: true,
+    },
+    {
+      id: "organizers",
+      label: "Organizadores",
+      path: "/organizers",
+      icon: Users,
+    },
+    {
+      id: "reports",
+      label: "Reportes",
+      path: "/reporte-sistema",
+      icon: FileText,
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
@@ -116,7 +148,8 @@ export default function AdminDashboard() {
                 Dashboard del Administrador
               </h1>
               <p className="mt-2 text-sm text-gray-500 max-w-xl">
-                Monitorea el estado general del sistema y accede rápidamente a las funciones clave.
+                Monitorea el estado general del sistema y accede rápidamente a
+                las funciones clave.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -125,38 +158,56 @@ export default function AdminDashboard() {
                   Administrador
                 </p>
                 <p className="text-base font-semibold text-gray-900">
-                  Mateo Vargas
+                  {dashboardData.userName}
                 </p>
               </div>
               <Avatar className="h-12 w-12 border border-primary/10">
                 <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">
-                  MV
+                  {dashboardData.userName
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2)}
                 </AvatarFallback>
               </Avatar>
             </div>
           </header>
 
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+              <p className="text-red-700 text-sm font-medium">{error}</p>
+            </div>
+          )}
+
           <section>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {summaryMetrics.map(({ id, label, value, description, icon: Icon, accent }) => (
-                <Card
-                  key={id}
-                  className="bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow border-0"
-                >
-                  <CardHeader className="flex flex-row items-center justify-between pb-0">
-                    <CardTitle className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-                      {label}
-                    </CardTitle>
-                    <div className={`flex items-center justify-center w-12 h-12 rounded-full ${accent}`}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-6 pb-8 text-center space-y-2">
-                    <p className="text-5xl font-extrabold text-gray-900">{value}</p>
-                    <p className="text-sm text-gray-500">{description}</p>
-                  </CardContent>
-                </Card>
-              ))}
+              {summaryMetrics.map(
+                ({ id, label, value, description, icon: Icon, accent }) => (
+                  <Card
+                    key={id}
+                    className="bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow border-0"
+                  >
+                    <CardHeader className="flex flex-row items-center justify-between pb-0">
+                      <CardTitle className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+                        {label}
+                      </CardTitle>
+                      <div
+                        className={`flex items-center justify-center w-12 h-12 rounded-full ${accent}`}
+                      >
+                        <Icon className="w-5 h-5" />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-6 pb-8 text-center space-y-2">
+                      <p className="text-5xl font-extrabold text-gray-900">
+                        {value}
+                      </p>
+                      <p className="text-sm text-gray-500">{description}</p>
+                    </CardContent>
+                  </Card>
+                )
+              )}
             </div>
           </section>
         </div>
