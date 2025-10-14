@@ -21,6 +21,7 @@ import TeamDetails from "./pages/TeamDetails";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Unauthorized from "./pages/Unauthorized"; 
 import DashboardAdmin from "./pages/DashboardAdmin";
+import RegistrarOrganizador from "./pages/RegistrarOrganizador";
 
 
 const queryClient = new QueryClient();
@@ -141,7 +142,16 @@ const App = () => (
               </ProtectedRoute>
             }
           /> 
-          
+
+          <Route
+            path="/organizers"
+            element={
+              <ProtectedRoute role="ADMIN">
+                <RegistrarOrganizador />
+              </ProtectedRoute>
+            }
+          /> 
+
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
