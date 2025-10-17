@@ -19,23 +19,38 @@ import {
   Calendar,
   Users,
   Timer,
+  Star,
+  AlertTriangle,
 } from "lucide-react";
 import gesdettournamentService, {
   TournamentData,
   TeamStanding,
   Match,
+  PlayerStat,
 } from "@/services/gesdettournamentService";
 
-const getStatusColor = (status: TournamentData["status"]) => {
+// ✅ Calcula el estado actual del torneo según las fechas
+const getTournamentStatus = (startDate: string, endDate: string) => {
+  const now = new Date();
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (now < start) return "Pendiente";
+  if (now > end) return "Finalizado";
+  return "En curso";
+};
+
+// ✅ Define el color del Badge según el estado
+const getStatusColor = (status: string) => {
   switch (status) {
-    case "En curso":
-      return "bg-green-100 text-green-800 hover:bg-green-100";
-    case "Finalizado":
-      return "bg-gray-100 text-gray-800 hover:bg-gray-100";
     case "Pendiente":
-      return "bg-yellow-100 text-yellow-800 hover:bg-yellow-100";
+      return "bg-gray-200 text-gray-800";
+    case "En curso":
+      return "bg-green-200 text-green-800";
+    case "Finalizado":
+      return "bg-red-200 text-red-800";
     default:
-      return "bg-gray-100 text-gray-800 hover:bg-gray-100";
+      return "bg-gray-100 text-gray-700";
   }
 };
 
@@ -56,7 +71,7 @@ const formatShortDate = (dateString: string) => {
   });
 };
 
-export default function TournamentDetail() {
+export default function GestionDetallesTorneo() {
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -64,6 +79,8 @@ export default function TournamentDetail() {
   const [standings, setStandings] = useState<TeamStanding[]>([]);
   const [recentMatches, setRecentMatches] = useState<Match[]>([]);
   const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
+  const [topScorers, setTopScorers] = useState<PlayerStat[]>([]);
+  const [topYellows, setTopYellows] = useState<PlayerStat[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -71,11 +88,17 @@ export default function TournamentDetail() {
 
     const fetchData = async () => {
       try {
-        const t = await gesdettournamentService.getTournament(id);
-        setTournament(t);
+        const tournamentData = await gesdettournamentService.getTournament(id);
+        setTournament(tournamentData);
 
-        const s = await gesdettournamentService.getStandings(id);
-        setStandings(s);
+        const standingsData = await gesdettournamentService.getStandings(id);
+        setStandings(standingsData);
+
+        const scorers = await gesdettournamentService.getTopScorers(id);
+        setTopScorers(scorers);
+
+        const yellows = await gesdettournamentService.getTopYellowCards(id);
+        setTopYellows(yellows);
 
         const recent = await gesdettournamentService.getRecentMatches(id);
         setRecentMatches(recent);
@@ -93,7 +116,7 @@ export default function TournamentDetail() {
   }, [id]);
 
   const handleTeamClick = (team: string) => {
-    navigate("/team/1"); // TODO: ajustar al ID real de equipo cuando backend lo devuelva
+    navigate("/team/1"); // TODO: Reemplazar cuando backend devuelva el ID real
   };
 
   if (loading) {
@@ -112,9 +135,14 @@ export default function TournamentDetail() {
     );
   }
 
+  const tournamentStatus = getTournamentStatus(
+    tournament.startDate,
+    tournament.endDate
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* 🔹 Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
@@ -141,8 +169,9 @@ export default function TournamentDetail() {
         </div>
       </div>
 
+      {/* 🔹 Contenido */}
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-8">
-        {/* Sección 1: Estado General */}
+        {/* 🏆 Información General */}
         <Card className="bg-white shadow-sm border-0 rounded-xl">
           <CardHeader>
             <CardTitle className="flex items-center text-xl font-semibold text-gray-900">
@@ -162,13 +191,11 @@ export default function TournamentDetail() {
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">
-                  Estado
+                  Formato
                 </label>
-                <div className="mt-1">
-                  <Badge className={getStatusColor(tournament.status)}>
-                    {tournament.status}
-                  </Badge>
-                </div>
+                <p className="text-lg font-semibold text-gray-900">
+                  {tournament.format}
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">
@@ -177,12 +204,13 @@ export default function TournamentDetail() {
                 <div className="flex items-center mt-1">
                   <Users className="w-4 h-4 mr-2 text-primary" />
                   <span className="text-lg font-semibold text-gray-900">
-                    {tournament.teams}
+                    {tournament.numberOfTeams}
                   </span>
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t">
               <div>
                 <label className="text-sm font-medium text-gray-500">
                   Fecha de Inicio
@@ -205,11 +233,21 @@ export default function TournamentDetail() {
                   </span>
                 </div>
               </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">
+                  Estado
+                </label>
+                <div className="mt-1">
+                  <Badge className={getStatusColor(tournamentStatus)}>
+                    {tournamentStatus}
+                  </Badge>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Sección 2: Tabla de Posiciones */}
+        {/* 🔹 Tabla de Posiciones */}
         <Card className="bg-white shadow-sm border-0 rounded-xl">
           <CardHeader>
             <CardTitle className="flex items-center text-xl font-semibold text-gray-900">
@@ -235,48 +273,47 @@ export default function TournamentDetail() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {standings.map((team) => (
-                    <TableRow
-                      key={team.position}
-                      className="hover:bg-gray-50"
-                    >
+                  {standings.map((team, index) => (
+                    <TableRow key={index} className="hover:bg-gray-50">
                       <TableCell className="font-medium text-center">
                         <span
                           className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-                            team.position <= 3
+                            index < 3
                               ? "bg-primary text-white"
                               : "bg-gray-100 text-gray-600"
                           }`}
                         >
-                          {team.position}
+                          {index + 1}
                         </span>
                       </TableCell>
                       <TableCell className="font-medium">
                         <button
-                          onClick={() => handleTeamClick(team.team)}
-                          className="text-primary hover:text-primary/80 hover:underline cursor-pointer"
+                          onClick={() => handleTeamClick(team.teamName)}
+                          className="text-primary hover:underline"
                         >
-                          {team.team}
+                          {team.teamName}
                         </button>
                       </TableCell>
                       <TableCell className="text-center font-bold">
                         {team.points}
                       </TableCell>
                       <TableCell className="text-center">
-                        {team.played}
-                      </TableCell>
-                      <TableCell className="text-center">{team.won}</TableCell>
-                      <TableCell className="text-center">
-                        {team.drawn}
+                        {team.gamesPlayed}
                       </TableCell>
                       <TableCell className="text-center">
-                        {team.lost}
+                        {team.gamesWon}
                       </TableCell>
                       <TableCell className="text-center">
-                        {team.goalsFor}
+                        {team.gamesTied}
                       </TableCell>
                       <TableCell className="text-center">
-                        {team.goalsAgainst}
+                        {team.gamesLost}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {team.goalsScored}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {team.goalsConceded}
                       </TableCell>
                       <TableCell
                         className={`text-center font-medium ${
@@ -298,9 +335,62 @@ export default function TournamentDetail() {
           </CardContent>
         </Card>
 
-        {/* Sección 3: Partidos */}
+        {/* 🔹 Goleadores y Amarillas */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Resultados Recientes */}
+          {/* Máximos Goleadores */}
+          <Card className="bg-white shadow-sm border-0 rounded-xl">
+            <CardHeader>
+              <CardTitle className="flex items-center text-xl font-semibold text-gray-900">
+                <Star className="w-5 h-5 mr-2 text-primary" />
+                Máximos Goleadores
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {topScorers.map((p, idx) => (
+                <div
+                  key={idx}
+                  className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
+                >
+                  <span className="font-medium text-gray-900">
+                    {p.playerName} ({p.team})
+                  </span>
+                  <span className="font-semibold text-primary">
+                    ⚽ {p.goalScore}
+                  </span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Más Amarillas */}
+          <Card className="bg-white shadow-sm border-0 rounded-xl">
+            <CardHeader>
+              <CardTitle className="flex items-center text-xl font-semibold text-gray-900">
+                <AlertTriangle className="w-5 h-5 mr-2 text-yellow-500" />
+                Más Tarjetas Amarillas
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {topYellows.map((p, idx) => (
+                <div
+                  key={idx}
+                  className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
+                >
+                  <span className="font-medium text-gray-900">
+                    {p.playerName} ({p.team})
+                  </span>
+                  <span className="font-semibold text-yellow-600">
+                    🟨 {p.yellowCards}
+                  </span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 🔹 Resultados */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Recientes */}
           <Card className="bg-white shadow-sm border-0 rounded-xl">
             <CardHeader>
               <CardTitle className="flex items-center text-xl font-semibold text-gray-900">
@@ -309,25 +399,25 @@ export default function TournamentDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {recentMatches.map((match) => (
+              {recentMatches.map((match, idx) => (
                 <div
-                  key={match.id}
+                  key={idx}
                   className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
                 >
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-gray-900">
-                        {match.teamA}
+                        {match.homeTeam}
                       </span>
                       <div className="mx-4 text-lg font-bold text-primary">
-                        {match.scoreA} - {match.scoreB}
+                        {match.goalsHomeTeam} - {match.goalsAwayTeam}
                       </div>
                       <span className="font-medium text-gray-900">
-                        {match.teamB}
+                        {match.awayTeam}
                       </span>
                     </div>
                     <p className="text-center text-sm text-gray-500 mt-1">
-                      {formatShortDate(match.date)}
+                      {formatShortDate(match.matchDateTime)}
                     </p>
                   </div>
                 </div>
@@ -335,7 +425,7 @@ export default function TournamentDetail() {
             </CardContent>
           </Card>
 
-          {/* Próximos Partidos */}
+          {/* Próximos */}
           <Card className="bg-white shadow-sm border-0 rounded-xl">
             <CardHeader>
               <CardTitle className="flex items-center text-xl font-semibold text-gray-900">
@@ -344,25 +434,25 @@ export default function TournamentDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {upcomingMatches.map((match) => (
+              {upcomingMatches.map((match, idx) => (
                 <div
-                  key={match.id}
+                  key={idx}
                   className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
                 >
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-gray-900">
-                        {match.teamA}
+                        {match.homeTeam}
                       </span>
                       <div className="mx-4 text-lg font-bold text-gray-400">
                         VS
                       </div>
                       <span className="font-medium text-gray-900">
-                        {match.teamB}
+                        {match.awayTeam}
                       </span>
                     </div>
                     <p className="text-center text-sm text-gray-500 mt-1">
-                      {formatShortDate(match.date)} - {match.time}
+                      {formatShortDate(match.matchDateTime)} — {match.stadium}
                     </p>
                   </div>
                 </div>
@@ -371,7 +461,7 @@ export default function TournamentDetail() {
           </Card>
         </div>
 
-        {/* Sección 4: Acciones del Organizador */}
+        {/* 🔹 Acciones */}
         <Card className="bg-white shadow-sm border-0 rounded-xl">
           <CardHeader>
             <CardTitle className="text-xl font-semibold text-gray-900">
@@ -393,15 +483,14 @@ export default function TournamentDetail() {
 
               <Button
                 className="h-16 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
-                onClick={() => {
-                  navigate("/generacion-automatica");
-                  console.log("Ir a generador de llaves");
-                }}
+                onClick={() => navigate("/generacion-automatica")}
               >
                 <Trophy className="w-5 h-5 mr-2" />
                 <div className="text-left">
                   <div className="font-semibold">Generar llaves</div>
-                  <div className="text-xs opacity-90">Competencia automática</div>
+                  <div className="text-xs opacity-90">
+                    Competencia automática
+                  </div>
                 </div>
               </Button>
 
@@ -424,4 +513,3 @@ export default function TournamentDetail() {
     </div>
   );
 }
-
