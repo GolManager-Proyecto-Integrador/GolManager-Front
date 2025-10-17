@@ -22,6 +22,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Unauthorized from "./pages/Unauthorized"; 
 import DashboardAdmin from "./pages/DashboardAdmin";
 import RegistrarOrganizador from "./pages/RegistrarOrganizador";
+import OrganizerManagement from "./pages/OrganizerManagement";
+
 
 
 const queryClient = new QueryClient();
@@ -135,6 +137,15 @@ const App = () => (
           />
 
           <Route
+            path="/tournament/:id/rules"
+            element={
+             <ProtectedRoute role="USER">
+              <ReglasTorneo />
+            </ProtectedRoute>
+           }
+          />
+
+          <Route
             path="/admin-dashboard"
             element={
               <ProtectedRoute role="ADMIN">
@@ -144,10 +155,19 @@ const App = () => (
           /> 
 
           <Route
-            path="/organizers"
+            path="/organizers/register"
             element={
               <ProtectedRoute role="ADMIN">
                 <RegistrarOrganizador />
+              </ProtectedRoute>
+            }
+          /> 
+
+          <Route
+            path="/organizers"
+            element={
+              <ProtectedRoute role="ADMIN">
+                <OrganizerManagement />
               </ProtectedRoute>
             }
           /> 

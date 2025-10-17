@@ -153,16 +153,31 @@ export default function GestionCompetencias() {
                     </div>
                   </CardContent>
                   
-                  <CardFooter className="pt-0">
-                    <Button
-                      variant="outline"
-                      className="w-full text-primary border-primary hover:bg-primary hover:text-white transition-colors"
-                      onClick={() => navigate(`/detalles-torneo/${tournament.id}`)}
-                      //onClick={() => navigate(`tournament/${tournament.id}/teams-manage`)}
-                    >
-                      Ver detalles
-                    </Button>
-                  </CardFooter>
+                  <CardFooter className="pt-0 flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="w-full text-primary border-primary hover:bg-primary hover:text-white transition-colors"
+                    onClick={() => navigate(`/detalles-torneo/${tournament.id}`)}
+                  >
+                    Ver detalles
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="w-full text-yellow-600 border-yellow-300 hover:bg-yellow-500 hover:text-white transition-colors"
+                    onClick={() => handleEditTournament(tournament.id)}
+                  >
+                    Editar
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="w-full text-red-600 border-red-300 hover:bg-red-600 hover:text-white transition-colors"
+                    onClick={() => handleDeleteTournament(tournament.id)}
+                  >
+                    Eliminar
+                  </Button>
+                </CardFooter>
                 </Card>
               );
             })}

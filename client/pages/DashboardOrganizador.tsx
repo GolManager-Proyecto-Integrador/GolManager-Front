@@ -7,8 +7,7 @@ import {
   Trophy, 
   Users, 
   Calendar, 
-  BarChart3, 
-  Settings, 
+  BarChart3,
   LogOut, 
   Plus,
   TrendingUp,
@@ -318,41 +317,6 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               </Link>
-              
-              {/*
-              <Link to="/dashboard?section=perfil">
-                <Card className="hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02] cursor-pointer border-0 shadow-md bg-white">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-lg" style={{ backgroundColor: '#007BFF20' }}>
-                        <Settings className="w-6 h-6" style={{ color: '#007BFF' }} />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-gray-900">Configuración de Perfil</h4>
-                        <p className="text-sm text-gray-600">Ajustes y preferencias</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-              
-              <Link to="/login">
-                <Card className="hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02] cursor-pointer border-0 shadow-md bg-white">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-lg" style={{ backgroundColor: '#007BFF20' }}>
-                        <LogOut className="w-6 h-6 text-red-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-gray-900">Cerrar Sesión</h4>
-                        <p className="text-sm text-gray-600">Salir del sistema</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-              */}
-
             </div>
           </div>
         </main>
