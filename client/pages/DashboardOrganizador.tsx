@@ -318,7 +318,8 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               </Link>
-
+              
+              {/*
               <Link to="/dashboard?section=perfil">
                 <Card className="hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02] cursor-pointer border-0 shadow-md bg-white">
                   <CardContent className="p-6">
@@ -334,7 +335,7 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               </Link>
-
+              
               <Link to="/login">
                 <Card className="hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02] cursor-pointer border-0 shadow-md bg-white">
                   <CardContent className="p-6">
@@ -350,6 +351,8 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               </Link>
+              */}
+
             </div>
           </div>
         </main>
