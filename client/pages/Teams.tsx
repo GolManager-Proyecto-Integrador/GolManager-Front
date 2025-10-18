@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Trophy, Search, Plus } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Users, Trophy, Search, Plus, Edit, Trash2 } from "lucide-react";
 
 import teamService, { Team } from "@/services/teamService";
 
@@ -13,12 +14,17 @@ export default function Teams() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Obtenemos el idTournament desde URL o state
+  // Estados para modal de edición
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [editedName, setEditedName] = useState("");
+  const [editedCoach, setEditedCoach] = useState("");
+
   const location = useLocation();
   const { idTournament: idFromParams } = useParams<{ idTournament: string }>();
   const idTournament = location.state?.idTournament || idFromParams;
 
-  // 🔹 Cargar equipos desde el backend
+  // Cargar equipos desde backend
   const fetchTeams = async () => {
     if (!idTournament) return;
     try {
@@ -36,14 +42,51 @@ export default function Teams() {
     fetchTeams();
   }, [idTournament]);
 
-  // 🔎 Filtrar equipos por búsqueda
-  const filteredTeams = teams.filter(team =>
-    team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    team.coach.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    team.players.some(player =>
-      player.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+  // Filtrado
+  const filteredTeams = teams.filter(
+    (team) =>
+      team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      team.coach.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      team.players.some((player) =>
+        player.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
   );
+
+  // 🗑️ Eliminar equipo
+  const handleDeleteTeam = async (teamId: string) => {
+    if (!confirm("¿Estás seguro de que deseas eliminar este equipo?")) return;
+    try {
+      await teamService.deleteTeam(idTournament!, teamId);
+      await fetchTeams();
+    } catch (error) {
+      console.error("Error eliminando equipo:", error);
+      alert("No se pudo eliminar el equipo.");
+    }
+  };
+
+  // ✏️ Abrir modal de edición
+  const openEditModal = (team: Team) => {
+    setSelectedTeam(team);
+    setEditedName(team.name);
+    setEditedCoach(team.coach);
+    setEditModalOpen(true);
+  };
+
+  // 💾 Guardar cambios
+  const handleSaveEdit = async () => {
+    if (!selectedTeam || !idTournament) return;
+    try {
+      await teamService.updateTeam(idTournament, selectedTeam.id!, {
+        name: editedName,
+        coach: editedCoach,
+      });
+      setEditModalOpen(false);
+      await fetchTeams();
+    } catch (error) {
+      console.error("Error actualizando equipo:", error);
+      alert("No se pudo actualizar el equipo.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 py-8 px-4">
@@ -58,7 +101,7 @@ export default function Teams() {
               Sistema de Gestión de Torneos
             </h1>
           </div>
-          <p className="text-gray-600">Consulta de equipos y participantes</p>
+          <p className="text-gray-600">Consulta y gestión de equipos inscritos</p>
         </div>
 
         {/* Teams List */}
@@ -81,7 +124,7 @@ export default function Teams() {
               </Link>
             </div>
           </CardHeader>
-          
+
           <CardContent className="p-8">
             {/* Search Field */}
             <div className="mb-6">
@@ -111,9 +154,7 @@ export default function Teams() {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                       {/* Team Name */}
                       <div>
-                        <h3 className="font-semibold text-lg text-gray-900 mb-2">
-                          {team.name}
-                        </h3>
+                        <h3 className="font-semibold text-lg text-gray-900 mb-2">{team.name}</h3>
                         <div className="text-sm text-gray-600">
                           <span className="font-medium">Equipo ID:</span> #{team.id}
                         </div>
@@ -144,11 +185,31 @@ export default function Teams() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Botones de acción */}
+                    <div className="mt-6 flex gap-3">
+                      <Button
+                        variant="outline"
+                        className="text-blue-600 border-blue-300 hover:bg-blue-600 hover:text-white transition-colors"
+                        onClick={() => openEditModal(team)}
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Editar
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        className="text-red-600 border-red-300 hover:bg-red-600 hover:text-white transition-colors"
+                        onClick={() => handleDeleteTeam(team.id!)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Eliminar
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
-              /* No Teams Message */
               <div className="text-center py-12">
                 <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                   <Users className="w-12 h-12 text-gray-400" />
@@ -157,15 +218,49 @@ export default function Teams() {
                   {searchTerm ? "No se encontraron equipos" : "Aún no hay equipos registrados"}
                 </h3>
                 <p className="text-gray-500 max-w-md mx-auto">
-                  {searchTerm 
+                  {searchTerm
                     ? `No hay equipos que coincidan con "${searchTerm}". Intenta con otros términos de búsqueda.`
-                    : "Cuando se registren equipos en el torneo, aparecerán aquí para que puedas consultarlos."
-                  }
+                    : "Cuando se registren equipos en el torneo, aparecerán aquí para que puedas consultarlos."}
                 </p>
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Modal de Edición */}
+        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Editar Equipo</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div>
+                <Label htmlFor="teamName">Nombre del equipo</Label>
+                <Input
+                  id="teamName"
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="coach">Entrenador</Label>
+                <Input
+                  id="coach"
+                  value={editedCoach}
+                  onChange={(e) => setEditedCoach(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveEdit}>Guardar cambios</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Footer */}
         <div className="text-center mt-8 text-gray-500 text-sm">
