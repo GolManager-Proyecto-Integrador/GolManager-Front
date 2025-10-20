@@ -4,7 +4,7 @@
 
 import axios from "axios";
 
-const API_URL = "/api/admin/organizers";
+const API_URL = "http://localhost:8085/api/admin/organizers";
 
 export const organizerService = {
   // 🔹 Registrar nuevo organizador
