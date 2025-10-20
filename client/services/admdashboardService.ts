@@ -3,7 +3,7 @@
 import axios from "axios";
 
 // 🔹 Endpoint correcto del backend
-const API_URL = "http://localhost:8085/api/dashboard";
+const API_URL = "localhost:8085/api/admin/dashboard";
 
 export const dashboardService = {
   // Obtener la información general del dashboard (GET)
