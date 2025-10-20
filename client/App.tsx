@@ -155,7 +155,7 @@ const App = () => (
           /> 
 
           <Route
-            path="/organizers/register"
+            path="admin/organizers/register"
             element={
               <ProtectedRoute role="ADMIN">
                 <RegistrarOrganizador />
