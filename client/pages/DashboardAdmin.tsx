@@ -67,7 +67,7 @@ export default function AdminDashboard() {
       id: "teams",
       label: "Equipos registrados",
       value: dashboardData.numTeams,
-      description: "Equipos activos",
+      description: "Equipos",
       icon: Shield,
       accent: "bg-emerald-100 text-emerald-600",
     },

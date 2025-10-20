@@ -369,7 +369,7 @@ export default function OrganizerManagement() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Dejar en blanco para no cambiar"
+                  placeholder=""
                   value={editingOrganizer.password}
                   onChange={(e) =>
                     setEditingOrganizer({
