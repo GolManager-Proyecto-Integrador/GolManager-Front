@@ -28,7 +28,7 @@ interface Organizer {
   id: string;
   name: string;
   email: string;
-  tournamentsCreated: number;
+  numTournaments: number;  // ✅ ahora coincide con el backend
 }
 
 interface EditingOrganizer extends Organizer {
@@ -47,6 +47,7 @@ export default function OrganizerManagement() {
     null
   );
   const [loading, setLoading] = useState(true);
+
 
   // 🔹 Obtener lista de organizadores al cargar
   useEffect(() => {
@@ -84,40 +85,35 @@ export default function OrganizerManagement() {
     setIsEditDialogOpen(true);
   };
 
-  // 🔹 Guardar cambios (actualizar organizador)
-  const handleSaveChanges = async () => {
-    if (!editingOrganizer) return;
-    try {
+      // 🔹 Guardar cambios (actualizar organizador)
+    const handleSaveChanges = async () => {
+      if (!editingOrganizer) return;
+
       const token = localStorage.getItem("token");
-      await organizerService.update(
-        {
-          email: editingOrganizer.email,
-          name: editingOrganizer.name,
-          password: editingOrganizer.password || "",
-        },
-        token
-      );
 
-      setOrganizers((prev) =>
-        prev.map((org) =>
-          org.id === editingOrganizer.id
-            ? {
-                ...org,
-                name: editingOrganizer.name,
-                email: editingOrganizer.email,
-              }
-            : org
-        )
-      );
+      const payload = {
+        actualEmail: editingOrganizer.email, // se usa para verificar
+        newEmail: editingOrganizer.email, // no se cambia, pero el backend lo exige
+        newName: editingOrganizer.name,
+        newPassword: editingOrganizer.password,
+      };
 
-      alert("✅ Cambios guardados correctamente.");
-      setIsEditDialogOpen(false);
-      setEditingOrganizer(null);
-    } catch (error) {
-      alert("❌ Error al actualizar el organizador.");
-      console.error(error);
-    }
-  };
+      try {
+        await organizerService.update(payload, token);
+
+        // 🔄 Recargar la lista actualizada desde el backend
+        const updatedOrganizers = await organizerService.getAll(token);
+        setOrganizers(updatedOrganizers);
+
+        alert("✅ Cambios guardados correctamente.");
+        setIsEditDialogOpen(false);
+        setEditingOrganizer(null);
+      } catch (error) {
+        alert("❌ Error al actualizar el organizador.");
+        console.error("Error al actualizar organizador:", error);
+      }
+    };
+  // 🔹 Iniciar eliminación
 
   const handleDeleteClick = (organizerId: string) => {
     setOrganizerToDelete(organizerId);
@@ -263,7 +259,7 @@ export default function OrganizerManagement() {
                           {organizer.email}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                          {organizer.tournamentsCreated}
+                          {organizer.numTournaments}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm space-x-3">
                           <Button
@@ -325,8 +321,10 @@ export default function OrganizerManagement() {
               Actualiza la información del organizador
             </DialogDescription>
           </DialogHeader>
+
           {editingOrganizer && (
             <div className="space-y-4 py-4">
+              {/* Nombre */}
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-sm font-medium text-gray-700">
                   Nombre completo
@@ -344,24 +342,27 @@ export default function OrganizerManagement() {
                 />
               </div>
 
+              {/* Correo (no editable, pero necesario para el PUT) */}
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+                <Label
+                  htmlFor="email"
+                  className="text-sm font-medium text-gray-700"
+                >
                   Correo electrónico
                 </Label>
                 <Input
                   id="email"
                   type="email"
                   value={editingOrganizer.email}
-                  onChange={(e) =>
-                    setEditingOrganizer({
-                      ...editingOrganizer,
-                      email: e.target.value,
-                    })
-                  }
-                  className="rounded-xl border-gray-300"
+                  disabled
+                  className="rounded-xl border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed"
                 />
+                <p className="text-xs text-gray-500 italic">
+                  *El correo electrónico no puede modificarse. Solo se usa para verificación.
+                </p>
               </div>
 
+              {/* Contraseña */}
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-medium text-gray-700">
                   Contraseña
@@ -369,7 +370,7 @@ export default function OrganizerManagement() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder=""
+                  placeholder="Ingrese nueva contraseña"
                   value={editingOrganizer.password}
                   onChange={(e) =>
                     setEditingOrganizer({
@@ -383,6 +384,7 @@ export default function OrganizerManagement() {
             </div>
           )}
 
+          {/* Botones */}
           <div className="flex gap-3 justify-end pt-6 border-t">
             <Button
               variant="outline"
@@ -400,6 +402,7 @@ export default function OrganizerManagement() {
           </div>
         </DialogContent>
       </Dialog>
+
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

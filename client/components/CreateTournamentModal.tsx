@@ -331,9 +331,13 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
                 <Checkbox
                   id="roundTrip"
                   checked={formData.roundTrip}
-                  onCheckedChange={(checked) => 
-                    setFormData(prev => ({ ...prev, roundTrip: checked as boolean }))
-                  }
+                  onCheckedChange={(checked) => {
+                    // Shadcn Checkbox puede devolver true | false | "indeterminate"
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      roundTrip: checked === true // 🔹 Fuerza booleano real
+                    }));
+                  }}
                 />
                 <Label htmlFor="roundTrip" className="text-sm font-medium text-gray-900">
                   Ida y vuelta
@@ -343,6 +347,7 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
                 Los equipos se enfrentarán en partidos de ida y vuelta
               </p>
             </div>
+
 
             <div className="space-y-2">
               <Label htmlFor="yellowCards" className="text-sm font-medium text-gray-900">

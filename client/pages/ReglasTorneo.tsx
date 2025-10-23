@@ -7,8 +7,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-
 import { ArrowLeft, Edit3, ClipboardList, RotateCcw, AlertTriangle } from "lucide-react";
+import { Link } from "react-router-dom";
+
+
 import tournamentService, { TournamentData } from "@/services/gesdettournamentService";
 
 export default function ReglasTorneo() {
@@ -16,6 +18,7 @@ export default function ReglasTorneo() {
   const navigate = useNavigate();
 
   const [tournament, setTournament] = useState<TournamentData | null>(null);
+  const [suspendedPlayers, setSuspendedPlayers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [openModal, setOpenModal] = useState(false);
   const [form, setForm] = useState({
@@ -24,29 +27,38 @@ export default function ReglasTorneo() {
     yellowCardsSuspension: 3,
   });
 
-  // 🔹 Cargar datos del torneo
+  // 🔹 Cargar datos del torneo y jugadores suspendidos
   useEffect(() => {
     const fetchData = async () => {
       try {
         if (!id) return;
-        const data = await tournamentService.getTournament(id);
-        setTournament(data);
+
+        const [tournamentData, suspendedData] = await Promise.all([
+          tournamentService.getTournament(id),
+          tournamentService.getSuspendedPlayers(id),
+        ]);
+
+        setTournament(tournamentData);
+        setSuspendedPlayers(suspendedData);
+
         setForm({
-          format: data.format,
-          homeAndAway: data.homeAndAway,
-          yellowCardsSuspension: data.yellowCardsSuspension,
+          format: tournamentData.format,
+          homeAndAway: tournamentData.homeAndAway,
+          yellowCardsSuspension: tournamentData.yellowCardsSuspension,
         });
       } catch (error) {
-        console.error("Error al cargar el torneo:", error);
+        console.error("Error al cargar los datos:", error);
       } finally {
         setLoading(false);
       }
     };
+
     fetchData();
   }, [id]);
 
   const handleEditFormat = () => setOpenModal(true);
   const handleCloseModal = () => setOpenModal(false);
+  const handleBack = () => navigate(-1);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -57,12 +69,9 @@ export default function ReglasTorneo() {
   };
 
   const handleSave = () => {
-    console.log("Guardar cambios:", form);
-    // Aquí podrías llamar a tournamentService.updateTournament(id, form)
+    alert("⚙️ Función de actualización aún no implementada.");
     setOpenModal(false);
   };
-
-  const handleBack = () => navigate(`/tournament/${id}`);
 
   if (loading) {
     return <div className="text-center py-10 text-gray-500">Cargando reglas del torneo...</div>;
@@ -77,18 +86,17 @@ export default function ReglasTorneo() {
       {/* HEADER */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBack}
-            className="text-gray-600 hover:text-gray-900"
+          <Link
+            to="/admin-dashboard"
+            className="flex items-center text-gray-600 hover:text-gray-900 gap-2 text-sm font-medium"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Volver
-          </Button>
+            <ArrowLeft className="w-4 h-4" />
+            Volver al panel
+          </Link>
           <h1 className="text-2xl font-bold text-gray-900">Reglas del Torneo</h1>
         </div>
       </div>
+
 
       <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <Card className="shadow-md border-0">
@@ -124,14 +132,52 @@ export default function ReglasTorneo() {
               </div>
             </div>
 
-            <Alert className="bg-yellow-50 border-yellow-200">
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              <AlertDescription className="text-yellow-800 font-medium">
-                Jugadores que alcancen el límite serán suspendidos automáticamente.
-              </AlertDescription>
-            </Alert>
+            {/* ⚠️ ALERTA DINÁMICA DE SUSPENSIÓN */}
+            {suspendedPlayers.length > 0 ? (
+              <Alert className="bg-yellow-50 border-yellow-200 mt-4">
+                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <AlertDescription className="text-yellow-800 font-medium">
+                  {suspendedPlayers.length === 1 ? (
+                    <>
+                      ⚠️ El jugador <b>{suspendedPlayers[0].name}</b> ha alcanzado el límite de tarjetas
+                      y está suspendido para el próximo partido.
+                    </>
+                  ) : (
+                    <>
+                      ⚠️ Los siguientes jugadores están suspendidos:
+                      <ul className="mt-2 list-disc list-inside text-yellow-700 text-sm">
+                        {suspendedPlayers.map((p) => (
+                          <li key={p.id}>
+                            <b>{p.name}</b> — {p.team} ({p.numYellowCards} amarillas)
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Alert className="bg-green-50 border-green-200 mt-4">
+                <AlertDescription className="text-green-800">
+                  ✅ No hay jugadores suspendidos actualmente.
+                </AlertDescription>
+              </Alert>
+            )}
 
-            <div className="flex justify-end pt-4 border-t border-gray-200">
+            {/* ℹ️ INFORMACIÓN ADICIONAL */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mt-4">
+              <h3 className="font-semibold text-blue-800 mb-1">Información adicional</h3>
+              <ul className="list-disc list-inside text-blue-700 text-sm space-y-1">
+                <li>Las tarjetas se acumulan durante todo el torneo.</li>
+                <li>Una tarjeta roja equivale a suspensión inmediata.</li>
+                <li>Las suspensiones no se transfieren entre torneos.</li>
+              </ul>
+            </div>
+
+            <div className="flex justify-between pt-4 border-t border-gray-200">
+              <Button onClick={handleBack} variant="outline">
+                ← Volver al torneo
+              </Button>
               <Button onClick={handleEditFormat} className="bg-blue-600 text-white hover:bg-blue-700">
                 <Edit3 className="w-4 h-4 mr-2" />
                 Editar reglas
@@ -153,7 +199,7 @@ export default function ReglasTorneo() {
               <li>• Victoria: 3 puntos</li>
               <li>• Empate: 1 punto</li>
               <li>• Derrota: 0 puntos</li>
-              <li>• Desempate: diferencia de goles, goles a favor, enfrentamiento directo</li>
+              <li>• Desempate: diferencia de goles, goles a favor.</li>
             </ul>
           </CardContent>
         </Card>

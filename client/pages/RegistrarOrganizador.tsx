@@ -236,7 +236,7 @@ export default function RegistrarOrganizador() {
                 asChild
                 className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 transition-all duration-200"
               >
-                <Link to="/" className="flex items-center gap-2">
+                <Link to="/admin-dashboard" className="flex items-center gap-2">
                   <ArrowLeft className="w-4 h-4" />
                   Volver al panel
                 </Link>

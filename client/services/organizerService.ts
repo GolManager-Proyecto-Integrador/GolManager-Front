@@ -41,23 +41,24 @@ export const organizerService = {
     }
   },
 
-  // 🔹 Actualizar organizador (el email se envía solo para verificar)
-  update: async (
-    data: { email: string; name: string; password: string },
-    token?: string
-  ) => {
-    try {
-      const res = await axios.put(API_URL, data, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-      });
-      return res.data;
-    } catch (error: any) {
-      throw error.response?.data || { message: "Error al actualizar organizador" };
-    }
-  },
+// 🔹 Actualizar organizador (el email se envía solo para verificación)
+update: async (
+  data: { actualEmail: string; newEmail: string; newName: string; newPassword: string },
+  token?: string
+) => {
+  try {
+    const res = await axios.put(API_URL, data, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+    return res.data;
+  } catch (error: any) {
+    throw error.response?.data || { message: "Error al actualizar organizador" };
+  }
+},
+
 
   // 🔹 Eliminar organizador
   remove: async (email: string, token?: string) => {

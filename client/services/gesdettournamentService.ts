@@ -1,7 +1,12 @@
+//ReglasTorneo.tsx
+//GestionDetallesTorneo.tsx
+
 import axios from "axios";
 import { getToken } from "./authService";
 
 const API_URL = "http://localhost:8085/api/tournaments";
+
+
 
 // ==================== 🔹 Tipos ====================
 export interface TournamentData {
@@ -56,6 +61,10 @@ async function getTournament(idTournament: string): Promise<TournamentData> {
 
   const t = response.data;
 
+    // 🔹 Ajustar fechas a horario colombiano
+  const startDate = adjustToColombianTime(t.startDate);
+  const endDate = adjustToColombianTime(t.endDate);
+
   // 🔹 Cálculo del estado del torneo (en el front)
   const status =
     new Date(t.endDate) < new Date()
@@ -64,7 +73,7 @@ async function getTournament(idTournament: string): Promise<TournamentData> {
       ? "Pendiente"
       : "En curso";
 
-  return { ...t, status };
+  return { ...t, startDate, endDate, status };
 }
 
 // 2️⃣ Obtener tabla de posiciones
@@ -122,6 +131,13 @@ async function getTopYellowCards(idTournament: string): Promise<PlayerStat[]> {
   }));
 }
 
+// 🔹 Función para ajustar hora UTC a hora local de Colombia
+function adjustToColombianTime(dateString: string): string {
+  const utcDate = new Date(dateString);
+  const colombiaTime = new Date(utcDate.getTime() - 5 * 60 * 60 * 1000);
+  return colombiaTime.toISOString();
+}
+
 // 5️⃣ Obtener los últimos 3 partidos
 async function getRecentMatches(idTournament: string): Promise<Match[]> {
   const token = getToken();
@@ -135,12 +151,13 @@ async function getRecentMatches(idTournament: string): Promise<Match[]> {
 
   const data = response.data.matches || [];
 
+  // 🔸 Ajustar hora al horario colombiano
   return data.map((match: any) => ({
     homeTeam: match.homeTeam,
     awayTeam: match.awayTeam,
     goalsHomeTeam: match.goalsHomeTeam,
     goalsAwayTeam: match.goalsAwayTeam,
-    matchDateTime: match.matchDateTime,
+    matchDateTime: adjustToColombianTime(match.matchDateTime),
   }));
 }
 
@@ -157,15 +174,26 @@ async function getUpcomingMatches(idTournament: string): Promise<Match[]> {
 
   const data = response.data.matches || [];
 
+  // 🔸 Ajustar hora al horario colombiano
   return data.map((match: any) => ({
     homeTeam: match.homeTeam,
     awayTeam: match.awayTeam,
-    matchDateTime: match.matchDateTime,
+    matchDateTime: adjustToColombianTime(match.matchDateTime),
     stadium: match.stadium,
   }));
 }
 
-// ==================== 🔹 EXPORTACIÓN ====================
+// 7️⃣ Obtener jugadores suspendidos
+async function getSuspendedPlayers(idTournament: string): Promise<any[]> {
+  const token = getToken();
+  const response = await axios.get(`http://localhost:8085/api/players/${idTournament}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    params: { status: "SUSPENDED" },
+  });
+
+  return response.data.players || [];
+}
+
 export default {
   getTournament,
   getStandings,
@@ -173,4 +201,6 @@ export default {
   getTopYellowCards,
   getRecentMatches,
   getUpcomingMatches,
+  getSuspendedPlayers, 
 };
+
