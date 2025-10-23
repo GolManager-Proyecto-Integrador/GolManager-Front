@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Search, Edit, Trash2, ArrowLeft } from "lucide-react";
 import { organizerService } from "@/services/organizerService";
+import { dashboardService } from "@/services/admdashboardService"; // 👈 Se usa para traer el nombre del admin
 
 interface Organizer {
   id: string;
@@ -49,10 +50,11 @@ export default function OrganizerManagement() {
   );
   const [loading, setLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [adminName, setAdminName] = useState("Cargando..."); // 👈 nombre dinámico del admin
 
   // 🔹 Cargar organizadores
   useEffect(() => {
-    const fetchOrganizers = async () => {
+    const fetchData = async () => {
       const token = localStorage.getItem("token");
       if (!token) {
         alert("⚠️ No se encontró un token válido. Inicia sesión nuevamente.");
@@ -60,16 +62,21 @@ export default function OrganizerManagement() {
         return;
       }
       try {
+        // Trae organizadores
         const data = await organizerService.getAll(token);
         setOrganizers(data);
+
+        // Trae nombre del admin
+        const dashboardData = await dashboardService.getDashboardData(token);
+        setAdminName(dashboardData.userName);
       } catch (error) {
-        alert("Error al cargar los organizadores. Intenta nuevamente.");
+        alert("Error al cargar los datos. Intenta nuevamente.");
         console.error(error);
       } finally {
         setLoading(false);
       }
     };
-    fetchOrganizers();
+    fetchData();
   }, [navigate]);
 
   const filteredOrganizers = organizers.filter(
@@ -111,6 +118,7 @@ export default function OrganizerManagement() {
       alert("✅ Cambios guardados correctamente.");
       setIsEditDialogOpen(false);
       setEditingOrganizer(null);
+      setShowPassword(false);
     } catch (error) {
       alert("❌ Error al actualizar el organizador.");
       console.error("Error al actualizar organizador:", error);
@@ -152,56 +160,83 @@ export default function OrganizerManagement() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Header (restaurado exactamente como pediste) */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(-1)}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Volver
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                Gestión de Organizadores
-              </h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Administra los usuarios encargados de gestionar torneos
-              </p>
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(-1)}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Volver
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  Gestión de Organizadores
+                </h1>
+                <p className="mt-1 text-sm text-gray-500">
+                  Administra los usuarios encargados de gestionar torneos
+                </p>
+              </div>
+            </div>
+
+            {/* 👇 Aquí reemplazamos el nombre fijo por el dinámico */}
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-xs uppercase tracking-wide text-gray-400">
+                  Administrador
+                </p>
+                <p className="text-base font-semibold text-gray-900">
+                  {adminName}
+                </p>
+              </div>
+              <Avatar className="h-12 w-12 border border-primary/10">
+                <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">
+                  {adminName
+                    ?.split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2) || "AD"}
+                </AvatarFallback>
+              </Avatar>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Search Bar */}
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        {/* Search and Action Bar */}
         <Card className="mb-8 bg-white rounded-2xl shadow-md border-0">
-          <CardContent className="pt-6 pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Buscar organizador por nombre o correo…"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 rounded-xl border-gray-300"
-              />
+          <CardContent className="pt-6 pb-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Buscar organizador por nombre o correo…"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 rounded-xl border-gray-300"
+                />
+              </div>
+              <Button
+                onClick={() => navigate("/admin/organizers/register")}
+                className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-sm"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Nuevo Organizador
+              </Button>
             </div>
-            <Button
-              onClick={() => navigate("/admin/organizers/register")}
-              className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-sm"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Nuevo Organizador
-            </Button>
           </CardContent>
         </Card>
 
-        {/* Tabla de organizadores */}
+        {/* Table or Empty State */}
         {filteredOrganizers.length > 0 ? (
           <Card className="bg-white rounded-2xl shadow-md border-0 overflow-hidden">
             <CardHeader className="px-6 py-4 border-b border-gray-100">
@@ -214,16 +249,16 @@ export default function OrganizerManagement() {
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-600">
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                         Nombre
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-600">
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                         Correo electrónico
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-600">
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                         Torneos creados
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-600">
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                         Acciones
                       </th>
                     </tr>
@@ -292,7 +327,7 @@ export default function OrganizerManagement() {
         )}
       </div>
 
-      {/* Dialogo de edición */}
+      {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="rounded-2xl">
           <DialogHeader>
@@ -416,7 +451,7 @@ export default function OrganizerManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Confirmar eliminación */}
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
