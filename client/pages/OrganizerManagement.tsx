@@ -28,11 +28,12 @@ interface Organizer {
   id: string;
   name: string;
   email: string;
-  numTournaments: number;  // ✅ ahora coincide con el backend
+  numTournaments: number;
 }
 
 interface EditingOrganizer extends Organizer {
   password: string;
+  newEmail?: string;
 }
 
 export default function OrganizerManagement() {
@@ -47,9 +48,9 @@ export default function OrganizerManagement() {
     null
   );
   const [loading, setLoading] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
 
-
-  // 🔹 Obtener lista de organizadores al cargar
+  // 🔹 Cargar organizadores
   useEffect(() => {
     const fetchOrganizers = async () => {
       const token = localStorage.getItem("token");
@@ -77,50 +78,51 @@ export default function OrganizerManagement() {
       org.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // 🔹 Editar organizador
   const handleEditClick = (organizer: Organizer) => {
     setEditingOrganizer({
       ...organizer,
       password: "",
+      newEmail: organizer.email,
     });
     setIsEditDialogOpen(true);
   };
 
-      // 🔹 Guardar cambios (actualizar organizador)
-    const handleSaveChanges = async () => {
-      if (!editingOrganizer) return;
+  // 🔹 Guardar cambios (PUT)
+  const handleSaveChanges = async () => {
+    if (!editingOrganizer) return;
 
-      const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
-      const payload = {
-        actualEmail: editingOrganizer.email, // se usa para verificar
-        newEmail: editingOrganizer.email, // no se cambia, pero el backend lo exige
-        newName: editingOrganizer.name,
-        newPassword: editingOrganizer.password,
-      };
-
-      try {
-        await organizerService.update(payload, token);
-
-        // 🔄 Recargar la lista actualizada desde el backend
-        const updatedOrganizers = await organizerService.getAll(token);
-        setOrganizers(updatedOrganizers);
-
-        alert("✅ Cambios guardados correctamente.");
-        setIsEditDialogOpen(false);
-        setEditingOrganizer(null);
-      } catch (error) {
-        alert("❌ Error al actualizar el organizador.");
-        console.error("Error al actualizar organizador:", error);
-      }
+    const payload = {
+      actualEmail: editingOrganizer.email,
+      newEmail: editingOrganizer.newEmail ?? editingOrganizer.email,
+      newName: editingOrganizer.name,
+      newPassword: editingOrganizer.password,
     };
-  // 🔹 Iniciar eliminación
 
+    try {
+      await organizerService.update(payload, token);
+
+      // 🔄 Refrescar lista
+      const updatedOrganizers = await organizerService.getAll(token);
+      setOrganizers(updatedOrganizers);
+
+      alert("✅ Cambios guardados correctamente.");
+      setIsEditDialogOpen(false);
+      setEditingOrganizer(null);
+    } catch (error) {
+      alert("❌ Error al actualizar el organizador.");
+      console.error("Error al actualizar organizador:", error);
+    }
+  };
+
+  // 🔹 Eliminar organizador
   const handleDeleteClick = (organizerId: string) => {
     setOrganizerToDelete(organizerId);
     setIsDeleteDialogOpen(true);
   };
 
-  // 🔹 Confirmar eliminación
   const handleConfirmDelete = async () => {
     if (!organizerToDelete) return;
     try {
@@ -152,74 +154,54 @@ export default function OrganizerManagement() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate(-1)}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Volver
-              </Button>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  Gestión de Organizadores
-                </h1>
-                <p className="mt-1 text-sm text-gray-500">
-                  Administra los usuarios encargados de gestionar torneos
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <p className="text-xs uppercase tracking-wide text-gray-400">
-                  Administrador
-                </p>
-                <p className="text-base font-semibold text-gray-900">
-                  Mateo Vargas
-                </p>
-              </div>
-              <Avatar className="h-12 w-12 border border-primary/10">
-                <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">
-                  MV
-                </AvatarFallback>
-              </Avatar>
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(-1)}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Volver
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Gestión de Organizadores
+              </h1>
+              <p className="mt-1 text-sm text-gray-500">
+                Administra los usuarios encargados de gestionar torneos
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Search Bar */}
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        {/* Search and Action Bar */}
         <Card className="mb-8 bg-white rounded-2xl shadow-md border-0">
-          <CardContent className="pt-6 pb-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Buscar organizador por nombre o correo…"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 rounded-xl border-gray-300"
-                />
-              </div>
-              <Button
-                onClick={() => navigate("/admin/organizers/register")}
-                className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-sm"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Nuevo Organizador
-              </Button>
+          <CardContent className="pt-6 pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Buscar organizador por nombre o correo…"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 rounded-xl border-gray-300"
+              />
             </div>
+            <Button
+              onClick={() => navigate("/admin/organizers/register")}
+              className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-sm"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Nuevo Organizador
+            </Button>
           </CardContent>
         </Card>
 
-        {/* Table or Empty State */}
+        {/* Tabla de organizadores */}
         {filteredOrganizers.length > 0 ? (
           <Card className="bg-white rounded-2xl shadow-md border-0 overflow-hidden">
             <CardHeader className="px-6 py-4 border-b border-gray-100">
@@ -232,16 +214,16 @@ export default function OrganizerManagement() {
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-600">
                         Nombre
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-600">
                         Correo electrónico
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-600">
                         Torneos creados
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-600">
                         Acciones
                       </th>
                     </tr>
@@ -310,7 +292,7 @@ export default function OrganizerManagement() {
         )}
       </div>
 
-      {/* Edit Dialog */}
+      {/* Dialogo de edición */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="rounded-2xl">
           <DialogHeader>
@@ -326,11 +308,13 @@ export default function OrganizerManagement() {
             <div className="space-y-4 py-4">
               {/* Nombre */}
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-sm font-medium text-gray-700">
+                <Label htmlFor="newName" className="text-sm font-medium text-gray-700">
                   Nombre completo
                 </Label>
                 <Input
-                  id="name"
+                  id="newName"
+                  type="text"
+                  placeholder="Ingrese nuevo nombre"
                   value={editingOrganizer.name}
                   onChange={(e) =>
                     setEditingOrganizer({
@@ -342,44 +326,73 @@ export default function OrganizerManagement() {
                 />
               </div>
 
-              {/* Correo (no editable, pero necesario para el PUT) */}
+              {/* Correo actual */}
               <div className="space-y-2">
-                <Label
-                  htmlFor="email"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Correo electrónico
+                <Label htmlFor="actualEmail" className="text-sm font-medium text-gray-700">
+                  Correo actual
                 </Label>
                 <Input
-                  id="email"
+                  id="actualEmail"
                   type="email"
                   value={editingOrganizer.email}
                   disabled
                   className="rounded-xl border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed"
                 />
                 <p className="text-xs text-gray-500 italic">
-                  *El correo electrónico no puede modificarse. Solo se usa para verificación.
+                  *Este correo se usa para verificar la identidad del organizador.
+                </p>
+              </div>
+
+              {/* Nuevo correo */}
+              <div className="space-y-2">
+                <Label htmlFor="newEmail" className="text-sm font-medium text-gray-700">
+                  Nuevo correo electrónico
+                </Label>
+                <Input
+                  id="newEmail"
+                  type="email"
+                  placeholder="Ingrese nuevo correo electrónico"
+                  value={editingOrganizer.newEmail ?? editingOrganizer.email}
+                  onChange={(e) =>
+                    setEditingOrganizer({
+                      ...editingOrganizer,
+                      newEmail: e.target.value,
+                    })
+                  }
+                  className="rounded-xl border-gray-300"
+                />
+                <p className="text-xs text-gray-500 italic">
+                  *Si no desea cambiarlo, deje el mismo correo actual.
                 </p>
               </div>
 
               {/* Contraseña */}
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+                <Label htmlFor="newPassword" className="text-sm font-medium text-gray-700">
                   Contraseña
                 </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Ingrese nueva contraseña"
-                  value={editingOrganizer.password}
-                  onChange={(e) =>
-                    setEditingOrganizer({
-                      ...editingOrganizer,
-                      password: e.target.value,
-                    })
-                  }
-                  className="rounded-xl border-gray-300"
-                />
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Ingrese nueva contraseña"
+                    value={editingOrganizer.password}
+                    onChange={(e) =>
+                      setEditingOrganizer({
+                        ...editingOrganizer,
+                        password: e.target.value,
+                      })
+                    }
+                    className="rounded-xl border-gray-300 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+                  >
+                    {showPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -403,8 +416,7 @@ export default function OrganizerManagement() {
         </DialogContent>
       </Dialog>
 
-
-      {/* Delete Confirmation Dialog */}
+      {/* Confirmar eliminación */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
@@ -431,4 +443,3 @@ export default function OrganizerManagement() {
     </div>
   );
 }
-
