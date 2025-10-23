@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { logout } from "@/services/authService";
 import { 
   LayoutGrid,
   Trophy, 
@@ -26,6 +27,8 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [organizer, setOrganizer] = useState<OrganizerInfo | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function loadData() {
@@ -42,32 +45,39 @@ export default function Dashboard() {
   }, []);
 
   const navigationItems = [
-    { icon: LayoutGrid, label: "Dashboard", href: "/dashboard-organizador", active: true }, //HECHA
-    { icon: Trophy, label: "Torneos", href: "/gestion-competencias" },                 //HECHA
-    { icon: Users, label: "Equipos y jugadores", href: "/teams-manage" },       //HECHA
-    { icon: Calendar, label: "Calendario", href: "/calendario" },               //HECHA
+    { icon: LayoutGrid, label: "Dashboard", href: "/dashboard-organizador" },
+    { icon: Trophy, label: "Torneos", href: "/gestion-competencias" },
+    { icon: Users, label: "Equipos y jugadores", href: "/teams-manage" },
+    { icon: Calendar, label: "Calendario", href: "/calendario" },
     { icon: BarChart3, label: "Resultados y posiciones", href: "/resultados" },
   ];
 
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
+
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#F7F8FA' }}>
+    <div className="min-h-screen" style={{ backgroundColor: "#F7F8FA" }}>
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-        <aside className={`
+      <aside
+        className={`
           fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-50 transform transition-transform duration-200 ease-in-out
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0
-        `}>
+        `}
+      >
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg" style={{ backgroundColor: '#007BFF' }}>
+              <div className="p-2 rounded-lg" style={{ backgroundColor: "#007BFF" }}>
                 <Trophy className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -87,33 +97,36 @@ export default function Dashboard() {
         </div>
 
         <nav className="p-4 space-y-2 flex-1">
-          {navigationItems.map((item) => (
-            <Link
-              key={item.href}
-              to={item.href}
-              className={`
-                flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-200
-                ${item.active 
-                  ? 'text-white' 
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                }
-              `}
-              style={item.active ? { backgroundColor: '#007BFF' } : {}}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">{item.label}</span>
-            </Link>
-          ))}
+          {navigationItems.map((item) => {
+            const active = location.pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                to={item.href}
+                className={`
+                  flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-200
+                  ${active
+                    ? "text-white font-semibold shadow-md"
+                    : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"}
+                `}
+                style={active ? { backgroundColor: "#007BFF" } : {}}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="p-4 border-t border-gray-200">
-          <Link
-            to="/login"
-            className="flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 font-medium"
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 font-medium w-full"
           >
             <LogOut className="w-5 h-5" />
             Cerrar sesión
-          </Link>
+          </button>
         </div>
       </aside>
 
@@ -151,7 +164,7 @@ export default function Dashboard() {
                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center">
                   <span className="text-white font-semibold">
                     {organizer
-                      ? organizer.name.split(" ").map(n => n[0]).join("").substring(0,2)
+                      ? organizer.name.split(" ").map((n) => n[0]).join("").substring(0, 2)
                       : "OC"}
                   </span>
                 </div>
@@ -161,12 +174,13 @@ export default function Dashboard() {
         </header>
 
         <main className="p-6 space-y-8">
+          {/* Botón crear competencia */}
           <div className="flex justify-start">
             <Link to="/gestion-competencias">
-              <Button 
+              <Button
                 size="lg"
                 className="text-white font-semibold px-8 py-4 text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
-                style={{ backgroundColor: '#007BFF' }}
+                style={{ backgroundColor: "#007BFF" }}
               >
                 <Plus className="w-6 h-6 mr-3" />
                 Crear nueva competencia
@@ -261,7 +275,9 @@ export default function Dashboard() {
                     </p>
                     <div className="flex items-center gap-1 text-sm">
                       <TrendingUp className="w-4 h-4 text-green-500" />
-                      <span className="text-green-600 font-medium">+5 nueva inscripción</span>
+                      <span className="text-green-600 font-medium">
+                        +5 nueva inscripción
+                      </span>
                     </div>
                   </div>
                 </CardContent>
@@ -277,11 +293,16 @@ export default function Dashboard() {
                 <Card className="hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02] cursor-pointer border-0 shadow-md bg-white">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-lg" style={{ backgroundColor: '#007BFF20' }}>
-                        <Trophy className="w-6 h-6" style={{ color: '#007BFF' }} />
+                      <div
+                        className="p-3 rounded-lg"
+                        style={{ backgroundColor: "#007BFF20" }}
+                      >
+                        <Trophy className="w-6 h-6" style={{ color: "#007BFF" }} />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-gray-900">Gestionar Torneos</h4>
+                        <h4 className="font-semibold text-gray-900">
+                          Gestionar Torneos
+                        </h4>
                       </div>
                     </div>
                   </CardContent>
@@ -292,11 +313,16 @@ export default function Dashboard() {
                 <Card className="hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02] cursor-pointer border-0 shadow-md bg-white">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-lg" style={{ backgroundColor: '#007BFF20' }}>
-                        <Users className="w-6 h-6" style={{ color: '#007BFF' }} />
+                      <div
+                        className="p-3 rounded-lg"
+                        style={{ backgroundColor: "#007BFF20" }}
+                      >
+                        <Users className="w-6 h-6" style={{ color: "#007BFF" }} />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-gray-900">Gestionar Equipos</h4>
+                        <h4 className="font-semibold text-gray-900">
+                          Gestionar Equipos
+                        </h4>
                       </div>
                     </div>
                   </CardContent>
@@ -307,11 +333,16 @@ export default function Dashboard() {
                 <Card className="hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02] cursor-pointer border-0 shadow-md bg-white">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-lg" style={{ backgroundColor: '#007BFF20' }}>
-                        <BarChart3 className="w-6 h-6" style={{ color: '#007BFF' }} />
+                      <div
+                        className="p-3 rounded-lg"
+                        style={{ backgroundColor: "#007BFF20" }}
+                      >
+                        <BarChart3 className="w-6 h-6" style={{ color: "#007BFF" }} />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-gray-900">Generar Reportes</h4>
+                        <h4 className="font-semibold text-gray-900">
+                          Generar Reportes
+                        </h4>
                       </div>
                     </div>
                   </CardContent>
