@@ -87,7 +87,7 @@ export default function ReglasTorneo() {
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex items-center justify-between">
           <Link
-            to="/admin-dashboard"
+            to="/dashboard-organizador"
             className="flex items-center text-gray-600 hover:text-gray-900 gap-2 text-sm font-medium"
           >
             <ArrowLeft className="w-4 h-4" />
