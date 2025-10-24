@@ -1,4 +1,5 @@
 //Teams.tsx
+//TeamManagement.tsx
 
 import axios from "axios";
 import { getToken } from "./authService";
@@ -127,4 +128,4 @@ export default {
   createTeam,
   updateTeam,
   deleteTeam,
-};
+}; 
