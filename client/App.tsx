@@ -23,6 +23,7 @@ import Unauthorized from "./pages/Unauthorized";
 import DashboardAdmin from "./pages/DashboardAdmin";
 import RegistrarOrganizador from "./pages/RegistrarOrganizador";
 import OrganizerManagement from "./pages/OrganizerManagement";
+import GeneracionAutomatica from "./pages/GeneracionAutomatica";
 
 
 
@@ -95,6 +96,15 @@ const App = () => (
             element={
               <ProtectedRoute role="USER">
                 <GestionCompetencias />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="//generacion-automatica"
+            element={
+              <ProtectedRoute role="USER">
+                <GeneracionAutomatica />
               </ProtectedRoute>
             }
           />
