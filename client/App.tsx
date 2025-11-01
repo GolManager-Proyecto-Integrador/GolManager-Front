@@ -26,7 +26,6 @@ import OrganizerManagement from "./pages/OrganizerManagement";
 import GeneracionAutomatica from "./pages/GeneracionAutomatica";
 
 
-
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -74,7 +73,6 @@ const App = () => (
           <Route
             //path="/gestion-competencias/tournament/:idTournament/teams-manage"
             path="/tournament/:idTournament/teams-manage"
-            //path="teams-manage"
             element={
               <ProtectedRoute role="USER">
                 <TeamManagement />
