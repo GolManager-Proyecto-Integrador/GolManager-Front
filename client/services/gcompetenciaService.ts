@@ -14,14 +14,13 @@ export interface Tournament {
   name: string;
   startDate: string;
   endDate: string;
-  status?: "En curso" | "Finalizado" | "Pendiente"; // ya no obligatorio, lo calculamos
-  numberOfTeams: number;  // <-- corregido
+  status?: "En curso" | "Finalizado" | "Pendiente";
+  numberOfTeams: number;
   format: string;
   roundTrip?: boolean;
   yellowCards?: number;
   referees?: number[];
 }
-
 
 export interface Match {
   id: string;
@@ -75,33 +74,45 @@ async function getTournamentDetails(id: string): Promise<Tournament> {
   return response.data;
 }
 
-// Crear nueva competencia
-async function createTournament(
-  tournament: Omit<Tournament, "id">
-): Promise<Tournament> {
+// ✅ Crear nueva competencia (TRADUCCIÓN DE CAMPOS AQUÍ)
+async function createTournament(tournament: Omit<Tournament, "id">): Promise<Tournament> {
   const token = getToken();
-  // 🔹 Asegurar que referees se manden como number[]
+
+  // 🔹 Traducimos nombres del front → backend
   const payload = {
-    ...tournament,
-    referees: tournament.referees?.map(Number) || [],
+    name: tournament.name,
+    startDate: tournament.startDate,
+    endDate: tournament.endDate,
+    format: tournament.format,
+    numberOfTeams: tournament.numberOfTeams,
+    homeAndAway: tournament.roundTrip,              // 👈 el backend espera este nombre
+    yellowCardsSuspension: tournament.yellowCards,  // 👈 el backend espera este nombre
+    refereeIds: tournament.referees?.map(Number) || [],
+    status: tournament.status,
   };
-  const response = await axios.post(`${API_URL}/create`, payload, { // <-- 🔹 CAMBIO AQUÍ
+
+  const response = await axios.post(`${API_URL}/create`, payload, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return response.data;
 }
 
-
-// Actualizar competencia
-async function updateTournament(
-  id: string,
-  updates: Partial<Tournament>
-): Promise<Tournament> {
+// ✅ Actualizar competencia (también traducimos aquí)
+async function updateTournament(id: string, updates: Partial<Tournament>): Promise<Tournament> {
   const token = getToken();
+
   const payload = {
-    ...updates,
-    referees: updates.referees?.map(Number) || [],
+    name: updates.name,
+    startDate: updates.startDate,
+    endDate: updates.endDate,
+    format: updates.format,
+    numberOfTeams: updates.numberOfTeams,
+    homeAndAway: updates.roundTrip,
+    yellowCardsSuspension: updates.yellowCards,
+    refereeIds: updates.referees?.map(Number) || [],
+    status: updates.status,
   };
+
   const response = await axios.put(`${API_URL}/${id}`, payload, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -134,13 +145,12 @@ async function getStandings(tournamentId: string): Promise<TeamPosition[]> {
   return response.data;
 }
 
-// 🔹 Obtener lista de árbitros
+// Obtener lista de árbitros
 async function getReferees(): Promise<Referee[]> {
   const token = getToken();
   const response = await axios.get(REFEREES_URL, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  // Ajuste: el backend devuelve { referees: [...] }
   return response.data.referees;
 }
 

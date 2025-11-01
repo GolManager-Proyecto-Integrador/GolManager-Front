@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { logout } from "@/services/authService";
 import {
   LayoutDashboard,
   Users,
@@ -130,7 +131,10 @@ export default function AdminDashboard() {
           <div className="px-4 py-6 border-t border-gray-100">
             <Button
               variant="ghost"
-              onClick={() => navigate("/login")}
+              onClick={() => {
+                logout(); // 👈 elimina el token
+                navigate("/login"); // redirige al login
+              }}
               className="w-full justify-start h-auto py-3 px-4 text-sm font-semibold rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
             >
               <LogOut className="w-4 h-4 mr-3" />

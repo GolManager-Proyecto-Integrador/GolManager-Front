@@ -1,22 +1,28 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:8085/api/auth"; // 👈 backend
+const API_URL = "http://localhost:8085/api/auth"; // 👈 Backend base URL
 
-export async function login(email, password) {
-  const response = await axios.post(`${API_URL}/login`, {
-    email,
-    password,
-  });
+// 🔹 Iniciar sesión
+export async function login(email: string, password: string) {
+  const response = await axios.post(`${API_URL}/login`, { email, password });
 
-  // guarda el token en localStorage
+  // Guarda el token en localStorage
   localStorage.setItem("token", response.data.token);
+
   return response.data;
 }
 
-export async function register(email, password) {
+// 🔹 Registrar nuevo usuario
+export async function register(email: string, password: string) {
   return axios.post(`${API_URL}/register`, { email, password });
 }
 
-export function getToken() {
+// 🔹 Obtener token almacenado
+export function getToken(): string | null {
   return localStorage.getItem("token");
+}
+
+// 🔹 Cerrar sesión (borrar token)
+export function logout(): void {
+  localStorage.removeItem("token");
 }
