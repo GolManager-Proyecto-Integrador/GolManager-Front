@@ -237,7 +237,7 @@ export default function Dashboard() {
               </Card>
             </Link>
 
-            <Link to="/proximos-partidos">
+            <Link to="/proximos-partidos">  
               <Card className="hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02] cursor-pointer border-0 shadow-md bg-blue-50">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
