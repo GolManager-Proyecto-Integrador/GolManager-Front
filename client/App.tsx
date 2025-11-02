@@ -24,7 +24,7 @@ import DashboardAdmin from "./pages/DashboardAdmin";
 import RegistrarOrganizador from "./pages/RegistrarOrganizador";
 import OrganizerManagement from "./pages/OrganizerManagement";
 import GeneracionAutomatica from "./pages/GeneracionAutomatica";
-
+import UpcomingMatches from "./pages/UpcomingMatches";
 
 const queryClient = new QueryClient();
 
@@ -100,10 +100,19 @@ const App = () => (
           />
 
           <Route
-            path="//generacion-automatica"
+            path="/generacion-automatica"
             element={
               <ProtectedRoute role="USER">
                 <GeneracionAutomatica />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/proximos-partidos"
+            element={
+              <ProtectedRoute role="USER">
+                <UpcomingMatches />
               </ProtectedRoute>
             }
           />
