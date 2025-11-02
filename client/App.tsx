@@ -25,6 +25,7 @@ import RegistrarOrganizador from "./pages/RegistrarOrganizador";
 import OrganizerManagement from "./pages/OrganizerManagement";
 import GeneracionAutomatica from "./pages/GeneracionAutomatica";
 import UpcomingMatches from "./pages/UpcomingMatches";
+import MatchManagement from "./pages/MatchManagement";
 
 const queryClient = new QueryClient();
 
@@ -113,6 +114,15 @@ const App = () => (
             element={
               <ProtectedRoute role="USER">
                 <UpcomingMatches />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/match/${matchId}"
+            element={
+              <ProtectedRoute role="USER">
+                <MatchManagement />
               </ProtectedRoute>
             }
           />
