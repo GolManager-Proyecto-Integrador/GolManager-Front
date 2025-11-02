@@ -110,7 +110,7 @@ const App = () => (
           />
 
           <Route
-            path="/proximos-partidos"
+            path="/proximos-partidos/:id"
             element={
               <ProtectedRoute role="USER">
                 <UpcomingMatches />
