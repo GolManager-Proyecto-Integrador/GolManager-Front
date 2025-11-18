@@ -56,20 +56,12 @@ const mockMatch: MatchData = {
 
 const mockPlayers: Player[] = [
   { id: '1', name: 'Karim Benzema', team: 'home' },
-  { id: '2', name: 'Vinícius Jr.', team: 'home' },
-  { id: '3', name: 'Luka Modrić', team: 'home' },
-  { id: '4', name: 'Toni Kroos', team: 'home' },
-  { id: '5', name: 'Robert Lewandowski', team: 'away' },
-  { id: '6', name: 'Pedri González', team: 'away' },
-  { id: '7', name: 'Gavi', team: 'away' },
-  { id: '8', name: 'Frenkie de Jong', team: 'away' }
+  { id: '2', name: 'Vinícius Jr.', team: 'home' }
 ];
 
 const mockEvents: MatchEvent[] = [
   { id: '1', minute: 15, player: 'Vinícius Jr.', type: 'goal', team: 'home' },
-  { id: '2', minute: 32, player: 'Robert Lewandowski', type: 'goal', team: 'away' },
-  { id: '3', minute: 45, player: 'Gavi', type: 'yellow', team: 'away' },
-  { id: '4', minute: 67, player: 'Karim Benzema', type: 'goal', team: 'home' }
+  { id: '2', minute: 32, player: 'Robert Lewandowski', type: 'goal', team: 'away' }
 ];
 
 const eventTypeOptions = [

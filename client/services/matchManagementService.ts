@@ -1,76 +1,153 @@
-// src/services/matchManagementService.ts
+// MatchManagement.tsx
+
 import axios from "axios";
+import { getToken } from "./authService";
 
-const API_BASE = "/api";
+// ===========================
+// CONFIGURACIÓN BASE
+// ===========================
+const API_BASE = "/api/tournaments";
 
-export interface MatchDetailResponse {
-  tournamentId: number;
-  tournamentName: string;
-  matchId: number;
-  homeTeam: string;
-  homeTeamId: number;
-  awayTeam: string;
-  awayTeamId: number;
-  matchDateTIme: string;
-  stadium: string;
-  goalsHomeTeam: number;
-  goalsAwayTeam: number;
-  refereeId: number;
-  refereeName: string;
-}
-
-export interface UpdateMatchRequest {
-  matchDateTIme: string;   // "2025-10-24 02:10:00+0000"
-  stadium: string;
-  refereeId: number;
-}
-
-export interface UpdateScoreRequest {
-  goalsHomeTeam: number;
-  goalsAwayTeam: number;
-}
-
-export interface MatchEventRequest {
-  minute: number;
-  playerId: number;
-  eventType: "goal" | "yellow" | "red";
-  teamId: number;
-}
-
-export const MatchManagementService = {
-  /**
-   * Obtener los detalles del partido
-   */
-  async getMatchDetails(tournamentId: string, matchId: string) {
-    const url = `${API_BASE}/tournaments/${tournamentId}/teams/${matchId}`;
-    const response = await axios.get<MatchDetailResponse>(url);
-    return response.data;
+// ===========================
+// HEADERS AUTORIZACIÓN
+// ===========================
+const authHeaders = () => ({
+  headers: {
+    Authorization: `Bearer ${getToken()}`,
+    "Content-Type": "application/json",
   },
+});
 
-  /**
-   * Reprogramar partido (PUT)
-   */
-  async updateMatch(tournamentId: string, matchId: string, data: UpdateMatchRequest) {
-    const url = `${API_BASE}/tournaments/${tournamentId}/teams/${matchId}`;
-    const response = await axios.put(url, data);
-    return response.data;
-  },
+// ===========================
+// GET — DETALLES DEL PARTIDO
+// ===========================
+export const getMatchDetails = async (tournamentId: number, matchId: number) => {
+  const url = `${API_BASE}/${tournamentId}/matches/${matchId}`;
 
-  /**
-   * Actualizar marcador del partido (PUT)
-   */
-  async updateScore(tournamentId: string, matchId: string, data: UpdateScoreRequest) {
-    const url = `${API_BASE}/tournaments/${tournamentId}/teams/${matchId}/score`;
-    const response = await axios.put(url, data);
-    return response.data;
-  },
+  const response = await axios.get(url, authHeaders());
+  return response.data; // Retorna exactamente el JSON que envía el backend
+};
 
-  /**
-   * Registrar evento del partido (POST)
-   */
-  async registerEvent(tournamentId: string, matchId: string, data: MatchEventRequest) {
-    const url = `${API_BASE}/tournaments/${tournamentId}/teams/${matchId}/events`;
-    const response = await axios.post(url, data);
-    return response.data;
+// ===========================
+// GET — TABLA DE POSICIONES
+// ===========================
+export const getTournamentPositions = async (tournamentId: number) => {
+  const url = `${API_BASE}/${tournamentId}/positions`;
+
+  const response = await axios.get(url, authHeaders());
+  return response.data; // { positions: [...] }
+};
+
+// ===========================
+// GET — LISTA DE EVENTOS DEL PARTIDO
+// ===========================
+export const getMatchEvents = async (tournamentId: number, matchId: number) => {
+  const url = `${API_BASE}/${tournamentId}/matches/events/${matchId}`;
+
+  const response = await axios.get(url, authHeaders());
+  return response.data; // { listGoals: [...], listCards: [...] }
+};
+
+// ======================================================
+// ===================  CRUD GOLES  ======================
+// ======================================================
+
+// GET — DETALLE DE UN GOL
+export const getGoalDetails = async (tournamentId: number, goalId: number) => {
+  const url = `${API_BASE}/${tournamentId}/matches/events/goal/${goalId}`;
+
+  const response = await axios.get(url, authHeaders());
+  return response.data;
+};
+
+// POST — REGISTRA UN NUEVO GOL
+export const createGoal = async (
+  tournamentId: number,
+  body: {
+    matchId: number;
+    playerId: number;
+    goalMinute: number;
   }
+) => {
+  const url = `${API_BASE}/${tournamentId}/matches/events/goal`;
+
+  const response = await axios.post(url, body, authHeaders());
+  return response.data;
+};
+
+// PUT — ACTUALIZA UN GOL
+export const updateGoal = async (
+  tournamentId: number,
+  goalId: number,
+  body: {
+    matchId: number;
+    playerId: number;
+    goalMinute: number;
+  }
+) => {
+  const url = `${API_BASE}/${tournamentId}/matches/events/goal/${goalId}`;
+
+  const response = await axios.put(url, body, authHeaders());
+  return response.data;
+};
+
+// DELETE — ELIMINAR UN GOL
+export const deleteGoal = async (tournamentId: number, goalId: number) => {
+  const url = `${API_BASE}/${tournamentId}/matches/events/goal/${goalId}`;
+
+  const response = await axios.delete(url, authHeaders());
+  return response.data; // { elementId, elementName, deletionElementDate }
+};
+
+// ======================================================
+// ===================  CRUD TARJETAS  ===================
+// ======================================================
+
+// GET — DETALLE DE UNA TARJETA
+export const getCardDetails = async (tournamentId: number, cardId: number) => {
+  const url = `${API_BASE}/${tournamentId}/matches/events/card/${cardId}`;
+
+  const response = await axios.get(url, authHeaders());
+  return response.data;
+};
+
+// POST — REGISTRAR TARJETA
+export const createCard = async (
+  tournamentId: number,
+  body: {
+    matchId: number;
+    playerId: number;
+    cardMinute: number;
+    cardColor: "RED" | "YELLOW";
+  }
+) => {
+  const url = `${API_BASE}/${tournamentId}/matches/events/card`;
+
+  const response = await axios.post(url, body, authHeaders());
+  return response.data;
+};
+
+// PUT — ACTUALIZAR TARJETA
+export const updateCard = async (
+  tournamentId: number,
+  cardId: number,
+  body: {
+    matchId: number;
+    playerId: number;
+    cardMinute: number;
+    cardColor: "RED" | "YELLOW";
+  }
+) => {
+  const url = `${API_BASE}/${tournamentId}/matches/events/card/${cardId}`;
+
+  const response = await axios.put(url, body, authHeaders());
+  return response.data;
+};
+
+// DELETE — ELIMINAR TARJETA
+export const deleteCard = async (tournamentId: number, cardId: number) => {
+  const url = `${API_BASE}/${tournamentId}/matches/events/card/${cardId}`;
+
+  const response = await axios.delete(url, authHeaders());
+  return response.data;
 };
