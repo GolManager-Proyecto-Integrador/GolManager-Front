@@ -1,20 +1,29 @@
+// TeamDetails.tsx
 import axios from "axios";
 import { getToken } from "./authService";
 
-const API_URL = "http://localhost:8085/api/tournaments";
+// =========================
+//   URL BASES SEGÚN BACKEND
+// =========================
+const API_TOURNAMENTS = "http://localhost:8085/api/tournaments";
+const API_PLAYERS = "http://localhost:8085/api/players";
 
-// Interfaces
+// ============================================================
+// 🔹 INTERFACES DEL FRONTEND (LO QUE LA VISTA NECESITA)
+// ============================================================
+
 export interface Player {
   id: string;
   name: string;
-  position: string;          // Enum en backend (ej: "PO")
-  dorsalNumber: number;      // Número en camiseta
-  age?: number;
-  goals?: number;            // Estadísticas (si backend las expone)
+  position: string;
+  role: "Titular" | "Suplente";        // Vista lo usa
+  dorsalNumber: number;
+  goals?: number;
   yellowCards?: number;
   redCards?: number;
-  role?: "Titular" | "Suplente";               // 🔹 necesario para TeamDetails
-  status?: "Activo" | "Suspendido" | "Lesionado"; // 🔹 necesario para TeamDetails
+
+  // Vista usa estas variantes:
+  status: "Activo" | "Suspendido" | "Lesionado";
 }
 
 export interface Team {
@@ -24,38 +33,190 @@ export interface Team {
   category: string;
   mainField: string;
   secondaryField?: string;
-  players: Player[];
+  players: Player[]; // NECESARIO PARA LA VISTA
 }
 
-// 🔹 Obtener detalle de un equipo específico
+// ============================================================
+// 🔹 INTERFACES DEL BACKEND (JSON REAL)
+// ============================================================
+
+interface BackendTeam {
+  teamId: number;
+  name: string;
+  coach: string;
+  category: string;
+  mainStadium: string;
+  secondaryStadium: string;
+  dataCreated: string;
+}
+
+interface BackendPlayer {
+  idPlayer: string;
+  name: string;
+  position: string;
+  starter: "TRUE" | "FALSE";
+  shirtNumber: string;
+  goals?: string;
+  yellowCards?: string;
+  redCards?: string;
+  status: "ACTIVE" | "SUSPENDED" | "INJURED";
+}
+
+interface UpdateTeamDTO {
+  name: string;
+  coach: string;
+  teamCategory: string;
+  mainStadium: string;
+  secondaryStadium: string;
+}
+
+interface UpdatePlayerDTO {
+  idPlayer: string;
+  name: string;
+  position: string;
+  starter: "TRUE" | "FALSE";
+  shirtNumber: string;
+  status: "ACTIVE" | "SUSPENDED" | "INJURED";
+}
+
+// ============================================================
+// 🔹 MAPEO BACKEND → FRONTEND
+// ============================================================
+
+function mapBackendPlayer(p: BackendPlayer): Player {
+  return {
+    id: p.idPlayer,
+    name: p.name,
+    position: p.position,
+    role: p.starter === "TRUE" ? "Titular" : "Suplente",
+    dorsalNumber: Number(p.shirtNumber),
+    goals: Number(p.goals ?? 0),
+    yellowCards: Number(p.yellowCards ?? 0),
+    redCards: Number(p.redCards ?? 0),
+
+    status:
+      p.status === "ACTIVE"
+        ? "Activo"
+        : p.status === "SUSPENDED"
+        ? "Suspendido"
+        : "Lesionado",
+  };
+}
+
+function mapBackendTeam(t: BackendTeam, players: Player[]): Team {
+  return {
+    id: String(t.teamId),
+    name: t.name,
+    coach: t.coach,
+    category: t.category,
+    mainField: t.mainStadium,
+    secondaryField: t.secondaryStadium,
+    players,
+  };
+}
+
+// ============================================================
+// 🔹 MAPEO FRONTEND → BACKEND (solo para PUT)
+// ============================================================
+
+function mapFrontendPlayerToBackend(p: Player): UpdatePlayerDTO {
+  return {
+    idPlayer: p.id,
+    name: p.name,
+    position: p.position,
+    starter: p.role === "Titular" ? "TRUE" : "FALSE",
+    shirtNumber: String(p.dorsalNumber),
+    status:
+      p.status === "Activo"
+        ? "ACTIVE"
+        : p.status === "Suspendido"
+        ? "SUSPENDED"
+        : "INJURED",
+  };
+}
+
+// ============================================================
+// 🔹 GET: Obtener detalles del equipo + jugadores
+// ============================================================
+
 export async function getTeamDetails(
   idTournament: string,
-  teamId: string
+  idTeam: string
 ): Promise<Team> {
   const token = getToken();
-  const response = await axios.get(
-    `${API_URL}/${idTournament}/teams/${teamId}`,
+
+  // 1️⃣ GET team
+  const teamResponse = await axios.get<BackendTeam>(
+    `${API_TOURNAMENTS}/${idTournament}/teams/${idTeam}`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
-  return response.data;
+
+  // 2️⃣ GET players
+  const playersResponse = await axios.get<BackendPlayer[]>(
+    `${API_PLAYERS}/${idTournament}/teams/${idTeam}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  const backendTeam = teamResponse.data;
+  const backendPlayers = playersResponse.data;
+
+  const players = backendPlayers.map(mapBackendPlayer);
+
+  return mapBackendTeam(backendTeam, players);
 }
 
-// 🔹 Actualizar equipo (información general + jugadores)
+// ============================================================
+// 🔹 PUT: Actualizar solo datos del equipo
+// ============================================================
+
 export async function updateTeamDetails(
   idTournament: string,
-  teamId: string,
-  team: Partial<Team>
+  idTeam: string,
+  team: Team
 ): Promise<Team> {
   const token = getToken();
-  const response = await axios.put(
-    `${API_URL}/${idTournament}/teams/${teamId}`,
-    team,
+
+  const body: UpdateTeamDTO = {
+    name: team.name,
+    coach: team.coach,
+    teamCategory: team.category,
+    mainStadium: team.mainField,
+    secondaryStadium: team.secondaryField ?? "",
+  };
+
+  const response = await axios.put<BackendTeam>(
+    `${API_TOURNAMENTS}/${idTournament}/teams/${idTeam}`,
+    body,
     { headers: { Authorization: `Bearer ${token}` } }
   );
-  return response.data;
+
+  return mapBackendTeam(response.data, team.players);
+}
+
+// ============================================================
+// 🔹 PUT: Actualizar un jugador
+// ============================================================
+
+export async function updatePlayerDetails(
+  idTournament: string,
+  idTeam: string,
+  player: Player
+): Promise<Player> {
+  const token = getToken();
+
+  const body: UpdatePlayerDTO = mapFrontendPlayerToBackend(player);
+
+  const response = await axios.put<BackendPlayer>(
+    `${API_PLAYERS}/${idTournament}/teams/${idTeam}`,
+    body,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  return mapBackendPlayer(response.data);
 }
 
 export default {
   getTeamDetails,
   updateTeamDetails,
+  updatePlayerDetails,
 };
