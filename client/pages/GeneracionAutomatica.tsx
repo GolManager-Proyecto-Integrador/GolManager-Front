@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, Trophy, Settings, Info, Users, Zap } from "lucide-react";
+import { generarLlavesEnfrentamientos } from "@/services/matchGeneratorService";
 
 interface MatchGenerated {
   id: string;
@@ -13,59 +14,61 @@ interface MatchGenerated {
   fase?: string;
 }
 
-// Datos de ejemplo para los diferentes formatos
-const equiposEjemplo = [
-  "Los Tigres FC", "Águilas Doradas", "Leones del Norte", "Cougars United",
-  "Dragones FC", "Panteras Negras", "Halcones Rojos", "Lobos Grises"
-];
-
-const partidosLiga: MatchGenerated[] = [
-  { id: "1", fecha: "2024-01-15", hora: "15:00", equipo1: "Los Tigres FC", equipo2: "Águilas Doradas" },
-  { id: "2", fecha: "2024-01-15", hora: "17:30", equipo1: "Leones del Norte", equipo2: "Cougars United" },
-  { id: "3", fecha: "2024-01-16", hora: "14:00", equipo1: "Dragones FC", equipo2: "Panteras Negras" },
-  { id: "4", fecha: "2024-01-16", hora: "16:30", equipo1: "Halcones Rojos", equipo2: "Lobos Grises" },
-  { id: "5", fecha: "2024-01-17", hora: "15:30", equipo1: "Los Tigres FC", equipo2: "Leones del Norte" },
-  { id: "6", fecha: "2024-01-17", hora: "18:00", equipo1: "Águilas Doradas", equipo2: "Cougars United" }
-];
-
-const partidosEliminacion: MatchGenerated[] = [
-  { id: "1", fecha: "2024-01-20", hora: "15:00", equipo1: "Los Tigres FC", equipo2: "Águilas Doradas", fase: "Cuartos de Final" },
-  { id: "2", fecha: "2024-01-20", hora: "17:30", equipo1: "Leones del Norte", equipo2: "Cougars United", fase: "Cuartos de Final" },
-  { id: "3", fecha: "2024-01-21", hora: "15:00", equipo1: "Dragones FC", equipo2: "Panteras Negras", fase: "Cuartos de Final" },
-  { id: "4", fecha: "2024-01-21", hora: "17:30", equipo1: "Halcones Rojos", equipo2: "Lobos Grises", fase: "Cuartos de Final" },
-  { id: "5", fecha: "2024-01-25", hora: "16:00", equipo1: "Ganador 1", equipo2: "Ganador 2", fase: "Semifinal" },
-  { id: "6", fecha: "2024-01-25", hora: "18:30", equipo1: "Ganador 3", equipo2: "Ganador 4", fase: "Semifinal" },
-  { id: "7", fecha: "2024-01-28", hora: "17:00", equipo1: "Finalista 1", equipo2: "Finalista 2", fase: "Final" }
-];
-
-const partidosRepechaje: MatchGenerated[] = [
-  { id: "1", fecha: "2024-01-18", hora: "14:00", equipo1: "Tercer lugar Grupo A", equipo2: "Segundo lugar Grupo B", fase: "Repechaje" },
-  { id: "2", fecha: "2024-01-18", hora: "16:30", equipo1: "Tercer lugar Grupo B", equipo2: "Segundo lugar Grupo A", fase: "Repechaje" }
-];
-
 export default function GeneracionAutomatica() {
   const [generacionActiva, setGeneracionActiva] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formatoSeleccionado, setFormatoSeleccionado] = useState<"liga" | "eliminacion" | "repechaje">("liga");
+  const [partidosBackend, setPartidosBackend] = useState<MatchGenerated[] | null>(null);
 
-  const generarCalendario = () => {
-    setGeneracionActiva(true);
-    // Simular proceso de generación
-    setTimeout(() => {
-      // La generación se mantiene activa para mostrar resultados
-    }, 1000);
+  // ============================
+  // MAPPER BACKEND → MATCHGENERATED
+  // ============================
+  const mapBackendMatches = (matches: any[]): MatchGenerated[] => {
+    return matches.map((m) => {
+      const fechaCompleta = new Date(m.matchDateTime);
+      const fecha = fechaCompleta.toISOString().split("T")[0];
+      const hora = fechaCompleta.toTimeString().substring(0, 5);
+
+      return {
+        id: String(m.idMatch),
+        fecha,
+        hora,
+        equipo1: m.homeTeam,
+        equipo2: m.awayTeam,
+        fase: m.round || undefined,
+      };
+    });
   };
 
-  const obtenerPartidosPorFormato = () => {
-    switch (formatoSeleccionado) {
-      case "liga":
-        return partidosLiga;
-      case "eliminacion":
-        return partidosEliminacion;
-      case "repechaje":
-        return [...partidosLiga.slice(0, 3), ...partidosRepechaje];
-      default:
-        return partidosLiga;
+  // ============================
+  // LLAMADA AL BACKEND
+  // ============================
+  const generarCalendario = async () => {
+    try {
+      setLoading(true);
+      setGeneracionActiva(true);
+
+      const tournamentId = 1; // <-- Reemplaza con ID real
+
+      const data = await generarLlavesEnfrentamientos(tournamentId);
+
+      const partidosMapeados = mapBackendMatches(data);
+      setPartidosBackend(partidosMapeados);
+    } catch (error) {
+      console.error("Error generando partidos:", error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // ============================
+  // OBTENER LISTA DE PARTIDOS
+  // ============================
+  const obtenerPartidosPorFormato = () => {
+    if (partidosBackend) {
+      return partidosBackend;
+    }
+    return [];
   };
 
   const formatDate = (dateString: string) => {
@@ -121,13 +124,18 @@ export default function GeneracionAutomatica() {
               <Button
                 onClick={generarCalendario}
                 size="lg"
-                className="bg-blue-600 hover:bg-blue-700 text-white text-lg px-8 py-4 h-auto"
+                className="bg-blue-600 hover:bg-blue-700 text-white text-lg px-8 py-4 h-auto flex items-center gap-3"
+                disabled={loading}
               >
-                <Zap className="w-5 h-5 mr-2" />
-                Generar calendario automático
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <Zap className="w-5 h-5" />
+                )}
+                {loading ? "Generando..." : "Generar calendario automático"}
               </Button>
               
-              {generacionActiva && (
+              {generacionActiva && !loading && partidosBackend && (
                 <div className="mt-4">
                   <div className="flex items-center justify-center gap-2 text-green-600 font-medium">
                     <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
@@ -137,84 +145,19 @@ export default function GeneracionAutomatica() {
               )}
             </div>
 
-            {/* Format Selection */}
-            {generacionActiva && (
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Formato del Torneo</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Button
-                    variant={formatoSeleccionado === "liga" ? "default" : "outline"}
-                    onClick={() => setFormatoSeleccionado("liga")}
-                    className="h-auto p-4 flex flex-col items-center gap-2"
-                  >
-                    <Users className="w-6 h-6" />
-                    <span className="font-medium">Liga</span>
-                    <span className="text-xs opacity-70">Todos contra todos</span>
-                  </Button>
-                  
-                  <Button
-                    variant={formatoSeleccionado === "eliminacion" ? "default" : "outline"}
-                    onClick={() => setFormatoSeleccionado("eliminacion")}
-                    className="h-auto p-4 flex flex-col items-center gap-2"
-                  >
-                    <Trophy className="w-6 h-6" />
-                    <span className="font-medium">Eliminación Directa</span>
-                    <span className="text-xs opacity-70">Cuartos, semis y final</span>
-                  </Button>
-                  
-                  <Button
-                    variant={formatoSeleccionado === "repechaje" ? "default" : "outline"}
-                    onClick={() => setFormatoSeleccionado("repechaje")}
-                    className="h-auto p-4 flex flex-col items-center gap-2"
-                  >
-                    <Calendar className="w-6 h-6" />
-                    <span className="font-medium">Con Repechaje</span>
-                    <span className="text-xs opacity-70">Incluye partidos adicionales</span>
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Format Description */}
-            {generacionActiva && (
-              <div className="mb-8">
-                {formatoSeleccionado === "liga" && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-900 mb-2">Formato Liga - Todos contra todos</h4>
-                    <p className="text-blue-800 text-sm">
-                      Cada equipo se enfrentará una vez contra todos los demás equipos. 
-                      Se generan {equiposEjemplo.length * (equiposEjemplo.length - 1) / 2} partidos en total.
-                    </p>
-                  </div>
-                )}
-                
-                {formatoSeleccionado === "eliminacion" && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-green-900 mb-2">Formato Eliminación Directa</h4>
-                    <p className="text-green-800 text-sm">
-                      Sistema de llaves con cuartos de final, semifinales y final. 
-                      Los equipos perdedores son eliminados del torneo.
-                    </p>
-                  </div>
-                )}
-                
-                {formatoSeleccionado === "repechaje" && (
-                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-orange-900 mb-2">Torneo con Repechaje</h4>
-                    <p className="text-orange-800 text-sm">
-                      Incluye partidos adicionales de repechaje para equipos que no clasificaron directamente. 
-                      Segunda oportunidad para los equipos eliminados.
-                    </p>
-                  </div>
-                )}
+            {/* SPINNER GRANDE MIENTRAS LLEGA EL BACKEND */}
+            {generacionActiva && loading && (
+              <div className="flex flex-col items-center justify-center py-10">
+                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <p className="mt-4 text-blue-700 font-medium">Generando partidos...</p>
               </div>
             )}
 
             {/* Generated Calendar */}
-            {generacionActiva && (
+            {generacionActiva && !loading && partidosBackend && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900">Calendario Generado</h3>
-                
+
                 {/* Table Header */}
                 <div className="grid grid-cols-4 gap-4 pb-3 border-b border-gray-200">
                   <div className="text-sm font-semibold text-gray-700">Fecha</div>
@@ -234,30 +177,26 @@ export default function GeneracionAutomatica() {
                       </div>
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                      {/* Fecha */}
                       <div>
                         <div className="font-medium text-gray-900">
                           {formatDate(partido.fecha)}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {new Date(partido.fecha).toLocaleDateString('es-ES')}
+                          {new Date(partido.fecha).toLocaleDateString("es-ES")}
                         </div>
                       </div>
 
-                      {/* Hora */}
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-blue-600" />
                         <span className="font-medium text-gray-900">{partido.hora}</span>
                       </div>
 
-                      {/* Equipo 1 */}
                       <div className="text-center md:text-left">
                         <div className="font-semibold text-blue-700 bg-blue-50 px-3 py-2 rounded-lg">
                           {partido.equipo1}
                         </div>
                       </div>
 
-                      {/* VS y Equipo 2 */}
                       <div className="text-center md:text-left">
                         <div className="flex items-center gap-2 justify-center md:justify-start">
                           <span className="text-gray-500 font-medium">VS</span>
@@ -296,3 +235,4 @@ export default function GeneracionAutomatica() {
     </div>
   );
 }
+
