@@ -9,8 +9,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import DashboardOrganizador from "./pages/DashboardOrganizador";
-import ListaTorneosPublic from "./pages/ListaTorneosPublic";
-import DetallesTorneoPublic from "./pages/DetallesTorneoPublic";
 import TeamManagement from "./pages/TeamManagement";
 import CalendarioPartidos from "./pages/CalendarioPartidos";
 import GestionCompetencias from "./pages/GestionCompetencias";
@@ -39,8 +37,6 @@ const App = () => (
           {/* Rutas públicas */}
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/torneo/:id" element={<DetallesTorneoPublic/>} />
-          <Route path="/lista-torneos" element={<ListaTorneosPublic/>} />
           <Route path="/unauthorized" element={<Unauthorized />} />
 
           {/* Solo organizadores (USER) */}
@@ -53,23 +49,6 @@ const App = () => (
             }
           />
 
-          <Route
-            /*path="/lista-torneos"
-            element={
-              <ProtectedRoute role="USER">
-                <ListaTorneos />
-              </ProtectedRoute>
-            }*/
-          />
-
-          <Route
-            /*path="//torneo/:id"   //Verificar id del Backend
-            element={
-              <ProtectedRoute role="USER">
-                <DetallesTorneo />
-              </ProtectedRoute>
-            }*/ 
-          /> 
 
           <Route
             //path="/gestion-competencias/tournament/:idTournament/teams-manage"
@@ -119,13 +98,25 @@ const App = () => (
           />
 
           <Route
+          /*
             path="/match/${matchId}"
             element={
               <ProtectedRoute role="USER">
                 <MatchManagement />
               </ProtectedRoute>
             }
+              */
           />
+
+          <Route
+            path="/match/:matchId"
+            element={
+              <ProtectedRoute role="USER">
+               <MatchManagement />
+              </ProtectedRoute>
+          }
+          />
+
 
           <Route
             path="/detalles-torneo/:id"
@@ -165,12 +156,12 @@ const App = () => (
           />
 
           <Route
-            path="/tournament/:id/rules"
+            /*path="/tournament/:id/rules"
             element={
              <ProtectedRoute role="USER">
               <ReglasTorneo />
             </ProtectedRoute>
-           }
+           } */
           />
 
           <Route
