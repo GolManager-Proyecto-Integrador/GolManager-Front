@@ -109,7 +109,8 @@ const App = () => (
           />
 
           <Route
-            path="/match/:matchId"
+            //path="/match/:matchId"
+            path="/tournament/:tournamentId/match/:matchId"
             element={
               <ProtectedRoute role="USER">
                <MatchManagement />

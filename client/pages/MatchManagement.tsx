@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,11 +7,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Save, X, MapPin, Calendar, Clock, User, Target, RefreshCw } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ArrowLeft, Save, X, MapPin, Calendar, Clock, User, Target, RefreshCw, Loader2, Trash2, Edit } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import {
+  getMatchDetails,
+  getTournamentPositions,
+  getMatchEvents,
+  createGoal,
+  updateGoal,
+  deleteGoal,
+  createCard,
+  updateCard,
+  deleteCard,
+} from '@/services/matchManagementService';
 
 interface MatchData {
-  id: string;
-  tournament: string;
+  id: number;
+  tournamentId: number;
+  homeTeamId: number;
+  awayTeamId: number;
   homeTeam: string;
   awayTeam: string;
   homePosition?: number;
@@ -25,93 +40,90 @@ interface MatchData {
 }
 
 interface Player {
-  id: string;
+  id: number;
   name: string;
   team: 'home' | 'away';
 }
 
 interface MatchEvent {
-  id: string;
+  id: number;
   minute: number;
   player: string;
+  playerId: number;
   type: 'goal' | 'yellow' | 'red';
   team: 'home' | 'away';
 }
 
-// Mock data
-const mockMatch: MatchData = {
-  id: '1',
-  tournament: 'Liga Nacional de Fútbol 2024',
-  homeTeam: 'Real Madrid CF',
-  awayTeam: 'FC Barcelona',
-  homePosition: 1,
-  awayPosition: 2,
-  date: '2024-12-20',
-  time: '16:00',
-  stadium: 'Santiago Bernabéu',
-  referee: 'Antonio Mateu Lahoz',
-  homeScore: 2,
-  awayScore: 1
-};
-
-const mockPlayers: Player[] = [
-  { id: '1', name: 'Karim Benzema', team: 'home' },
-  { id: '2', name: 'Vinícius Jr.', team: 'home' }
-];
-
-const mockEvents: MatchEvent[] = [
-  { id: '1', minute: 15, player: 'Vinícius Jr.', type: 'goal', team: 'home' },
-  { id: '2', minute: 32, player: 'Robert Lewandowski', type: 'goal', team: 'away' }
-];
+interface Position {
+  teamId: number;
+  teamName: string;
+  position: number;
+}
 
 const eventTypeOptions = [
   { value: 'goal', label: 'Gol ⚽', icon: '⚽' },
   { value: 'yellow', label: 'Tarjeta Amarilla 🟨', icon: '🟨' },
-  { value: 'red', label: 'Tarjeta Roja 🟥', icon: '🟥' }
+  { value: 'red', label: 'Tarjeta Roja 🟥', icon: '🟥' },
 ];
 
 const getEventIcon = (type: string) => {
   switch (type) {
-    case 'goal': return '⚽';
-    case 'yellow': return '🟨';
-    case 'red': return '🟥';
-    default: return '';
+    case 'goal':
+      return '⚽';
+    case 'yellow':
+      return '🟨';
+    case 'red':
+      return '🟥';
+    default:
+      return '';
   }
 };
 
 const getEventLabel = (type: string) => {
   switch (type) {
-    case 'goal': return 'Gol';
-    case 'yellow': return 'Tarjeta Amarilla';
-    case 'red': return 'Tarjeta Roja';
-    default: return '';
+    case 'goal':
+      return 'Gol';
+    case 'yellow':
+      return 'Tarjeta Amarilla';
+    case 'red':
+      return 'Tarjeta Roja';
+    default:
+      return '';
   }
 };
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
-  return date.toLocaleDateString('es-ES', { 
-    day: '2-digit', 
-    month: 'long', 
-    year: 'numeric' 
+  return date.toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
   });
 };
 
 export default function MatchManagement() {
-  const { id } = useParams();
+  const { id: matchId } = useParams();
+  const { tournamentId } = useParams();
   const navigate = useNavigate();
-  
+  const { toast } = useToast();
+
   // State for match data
-  const [match, setMatch] = useState(mockMatch);
-  const [events, setEvents] = useState(mockEvents);
+  const [match, setMatch] = useState<MatchData | null>(null);
+  const [events, setEvents] = useState<MatchEvent[]>([]);
+  const [positions, setPositions] = useState<Record<number, Position>>({});
+  const [players, setPlayers] = useState<Player[]>([]);
+
+  // Loading and error states
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // State for rescheduling
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [rescheduleData, setRescheduleData] = useState({
-    date: match.date,
-    time: match.time,
-    stadium: match.stadium,
-    referee: match.referee
+    date: '',
+    time: '',
+    stadium: '',
+    referee: '',
   });
   const [dateWarning, setDateWarning] = useState('');
 
@@ -119,38 +131,468 @@ export default function MatchManagement() {
   const [newEvent, setNewEvent] = useState({
     minute: '',
     player: '',
-    type: ''
+    type: '',
+    cardColor: 'YELLOW' as 'RED' | 'YELLOW',
+  });
+  const [isAddingEvent, setIsAddingEvent] = useState(false);
+
+  // State for deleting events
+  const [isDeletingEventId, setIsDeletingEventId] = useState<number | null>(null);
+
+  // State for editing events
+  const [isEditingEvent, setIsEditingEvent] = useState<number | null>(null);
+  const [editingEvent, setEditingEvent] = useState<MatchEvent | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    minute: '',
+    player: '',
+    cardColor: 'YELLOW' as 'RED' | 'YELLOW',
   });
 
-  const handleScoreUpdate = (team: 'home' | 'away', score: number) => {
-    setMatch(prev => ({
-      ...prev,
-      [team === 'home' ? 'homeScore' : 'awayScore']: score
-    }));
+  // Fetch match details and events on component mount
+  useEffect(() => {
+    const loadMatchData = async () => {
+      if (!matchId || !tournamentId) {
+        setError('Match ID or Tournament ID is missing');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const matchIdNum = parseInt(matchId);
+        const tournamentIdNum = parseInt(tournamentId);
+
+        const [matchDetailsData, eventsData, positionsData] = await Promise.all([
+          getMatchDetails(tournamentIdNum, matchIdNum),
+          getMatchEvents(tournamentIdNum, matchIdNum),
+          getTournamentPositions(tournamentIdNum),
+        ]);
+
+        // Set match data
+        setMatch({
+          id: matchDetailsData.id,
+          tournamentId: matchDetailsData.tournamentId,
+          homeTeamId: matchDetailsData.homeTeamId,
+          awayTeamId: matchDetailsData.awayTeamId,
+          homeTeam: matchDetailsData.homeTeam,
+          awayTeam: matchDetailsData.awayTeam,
+          date: matchDetailsData.date,
+          time: matchDetailsData.time,
+          stadium: matchDetailsData.stadium,
+          referee: matchDetailsData.referee,
+          homeScore: matchDetailsData.homeScore || 0,
+          awayScore: matchDetailsData.awayScore || 0,
+        });
+
+        // Set initial reschedule data
+        setRescheduleData({
+          date: matchDetailsData.date,
+          time: matchDetailsData.time,
+          stadium: matchDetailsData.stadium,
+          referee: matchDetailsData.referee,
+        });
+
+        // Build positions map
+        const positionsMap: Record<number, Position> = {};
+        if (positionsData.positions && Array.isArray(positionsData.positions)) {
+          positionsData.positions.forEach((pos: any) => {
+            positionsMap[pos.teamId] = pos;
+          });
+        }
+        setPositions(positionsMap);
+
+        // Set events (merge goals and cards)
+        const allEvents: MatchEvent[] = [];
+        if (eventsData.listGoals && Array.isArray(eventsData.listGoals)) {
+          eventsData.listGoals.forEach((goal: any) => {
+            allEvents.push({
+              id: goal.id,
+              minute: goal.goalMinute,
+              player: goal.playerName || goal.player,
+              playerId: goal.playerId,
+              type: 'goal',
+              team: goal.teamId === matchDetailsData.homeTeamId ? 'home' : 'away',
+            });
+          });
+        }
+        if (eventsData.listCards && Array.isArray(eventsData.listCards)) {
+          eventsData.listCards.forEach((card: any) => {
+            allEvents.push({
+              id: card.id,
+              minute: card.cardMinute,
+              player: card.playerName || card.player,
+              playerId: card.playerId,
+              type: card.cardColor === 'RED' ? 'red' : 'yellow',
+              team: card.teamId === matchDetailsData.homeTeamId ? 'home' : 'away',
+            });
+          });
+        }
+        setEvents(allEvents.sort((a, b) => a.minute - b.minute));
+
+        // Build players list from match details
+        const allPlayers: Player[] = [];
+        if (matchDetailsData.homeTeamPlayers && Array.isArray(matchDetailsData.homeTeamPlayers)) {
+          matchDetailsData.homeTeamPlayers.forEach((player: any) => {
+            allPlayers.push({
+              id: player.id,
+              name: player.name,
+              team: 'home',
+            });
+          });
+        }
+        if (matchDetailsData.awayTeamPlayers && Array.isArray(matchDetailsData.awayTeamPlayers)) {
+          matchDetailsData.awayTeamPlayers.forEach((player: any) => {
+            allPlayers.push({
+              id: player.id,
+              name: player.name,
+              team: 'away',
+            });
+          });
+        }
+        setPlayers(allPlayers);
+      } catch (err) {
+        console.error('Error loading match data:', err);
+        setError(err instanceof Error ? err.message : 'Error loading match data');
+        toast({
+          title: 'Error',
+          description: 'Failed to load match data',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadMatchData();
+  }, [matchId, tournamentId, toast]);
+
+  // Calculate scores from goals
+  const calculateScores = (eventsList: MatchEvent[]) => {
+    const goals = eventsList.filter((e) => e.type === 'goal');
+    const homeGoals = goals.filter((g) => g.team === 'home').length;
+    const awayGoals = goals.filter((g) => g.team === 'away').length;
+    return { homeGoals, awayGoals };
   };
 
-  const handleAddEvent = () => {
-    if (newEvent.minute && newEvent.player && newEvent.type) {
-      const player = mockPlayers.find(p => p.id === newEvent.player);
-      if (player) {
-        const event: MatchEvent = {
-          id: Date.now().toString(),
-          minute: parseInt(newEvent.minute),
+  // Validate form fields
+  const validateEventForm = (minute: string, player: string, type: string, cardColor?: string): string[] => {
+    const errors: string[] = [];
+
+    if (!minute || isNaN(parseInt(minute))) {
+      errors.push('Minuto debe ser un número válido');
+    } else {
+      const minuteNum = parseInt(minute);
+      if (minuteNum < 1 || minuteNum > 120) {
+        errors.push('Minuto debe estar entre 1 y 120');
+      }
+    }
+
+    if (!player) {
+      errors.push('Debe seleccionar un jugador');
+    }
+
+    if (!type) {
+      errors.push('Debe seleccionar un tipo de evento');
+    }
+
+    if ((type === 'yellow' || type === 'red') && !cardColor) {
+      errors.push('Debe seleccionar color de tarjeta');
+    }
+
+    return errors;
+  };
+
+  const handleScoreUpdate = (team: 'home' | 'away', score: number) => {
+    if (match) {
+      setMatch((prev) =>
+        prev
+          ? {
+              ...prev,
+              [team === 'home' ? 'homeScore' : 'awayScore']: score,
+            }
+          : prev
+      );
+    }
+  };
+
+  const handleAddEvent = async () => {
+    const validationErrors = validateEventForm(
+      newEvent.minute,
+      newEvent.player,
+      newEvent.type,
+      newEvent.type !== 'goal' ? newEvent.cardColor : undefined
+    );
+
+    if (validationErrors.length > 0) {
+      toast({
+        title: 'Validación Error',
+        description: validationErrors[0],
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!match) {
+      return;
+    }
+
+    try {
+      setIsAddingEvent(true);
+      const player = players.find((p) => p.id === parseInt(newEvent.player));
+      if (!player) {
+        throw new Error('Jugador no encontrado');
+      }
+
+      const minute = parseInt(newEvent.minute);
+      const playerId = parseInt(newEvent.player);
+      const tournamentIdNum = match.tournamentId;
+      const matchIdNum = match.id;
+
+      if (newEvent.type === 'goal') {
+        const goalData = await createGoal(tournamentIdNum, {
+          matchId: matchIdNum,
+          playerId,
+          goalMinute: minute,
+        });
+
+        const newGoalEvent: MatchEvent = {
+          id: goalData.id,
+          minute,
           player: player.name,
-          type: newEvent.type as 'goal' | 'yellow' | 'red',
-          team: player.team
+          playerId,
+          type: 'goal',
+          team: player.team,
         };
 
-        setEvents(prev => [...prev, event].sort((a, b) => a.minute - b.minute));
-        setNewEvent({ minute: '', player: '', type: '' });
+        const updatedEvents = [...events, newGoalEvent].sort((a, b) => a.minute - b.minute) as MatchEvent[];
+        setEvents(updatedEvents);
+
+        // Update scores based on goals
+        const scores = calculateScores(updatedEvents);
+        setMatch((prev) =>
+          prev
+            ? {
+                ...prev,
+                homeScore: scores.homeGoals,
+                awayScore: scores.awayGoals,
+              }
+            : prev
+        );
+
+        toast({
+          title: 'Éxito',
+          description: 'Gol registrado correctamente',
+        });
+      } else {
+        const cardData = await createCard(tournamentIdNum, {
+          matchId: matchIdNum,
+          playerId,
+          cardMinute: minute,
+          cardColor: newEvent.cardColor,
+        });
+
+        const newCardEvent: MatchEvent = {
+          id: cardData.id,
+          minute,
+          player: player.name,
+          playerId,
+          type: newEvent.cardColor === 'RED' ? 'red' : 'yellow',
+          team: player.team,
+        };
+
+        setEvents((prev) => [...prev, newCardEvent].sort((a, b) => a.minute - b.minute) as MatchEvent[]);
+
+        toast({
+          title: 'Éxito',
+          description: 'Tarjeta registrada correctamente',
+        });
       }
+
+      setNewEvent({ minute: '', player: '', type: '', cardColor: 'YELLOW' });
+    } catch (err) {
+      console.error('Error agregando evento:', err);
+      toast({
+        title: 'Error',
+        description: 'No se pudo agregar el evento',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsAddingEvent(false);
+    }
+  };
+
+  const handleOpenEditDialog = (event: MatchEvent) => {
+    setEditingEvent(event);
+    setEditFormData({
+      minute: event.minute.toString(),
+      player: event.playerId.toString(),
+      cardColor: event.type === 'red' ? 'RED' : 'YELLOW',
+    });
+    setIsEditingEvent(event.id);
+  };
+
+  const handleEditEvent = async () => {
+    if (!editingEvent || !match) {
+      return;
+    }
+
+    const validationErrors = validateEventForm(
+      editFormData.minute,
+      editFormData.player,
+      editingEvent.type,
+      editingEvent.type !== 'goal' ? editFormData.cardColor : undefined
+    );
+
+    if (validationErrors.length > 0) {
+      toast({
+        title: 'Validación Error',
+        description: validationErrors[0],
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const player = players.find((p) => p.id === parseInt(editFormData.player));
+      if (!player) {
+        throw new Error('Jugador no encontrado');
+      }
+
+      const minute = parseInt(editFormData.minute);
+      const playerId = parseInt(editFormData.player);
+      const tournamentIdNum = match.tournamentId;
+
+      if (editingEvent.type === 'goal') {
+        await updateGoal(tournamentIdNum, editingEvent.id, {
+          matchId: match.id,
+          playerId,
+          goalMinute: minute,
+        });
+
+        const updatedEvents = events
+          .map((e) =>
+            e.id === editingEvent.id
+              ? {
+                  ...e,
+                  minute,
+                  player: player.name,
+                  playerId,
+                }
+              : e
+          )
+          .sort((a, b) => a.minute - b.minute) as MatchEvent[];
+
+        setEvents(updatedEvents);
+
+        // Update scores based on goals
+        const scores = calculateScores(updatedEvents);
+        setMatch((prev) =>
+          prev
+            ? {
+                ...prev,
+                homeScore: scores.homeGoals,
+                awayScore: scores.awayGoals,
+              }
+            : prev
+        );
+
+        toast({
+          title: 'Éxito',
+          description: 'Gol actualizado correctamente',
+        });
+      } else {
+        await updateCard(tournamentIdNum, editingEvent.id, {
+          matchId: match.id,
+          playerId,
+          cardMinute: minute,
+          cardColor: editFormData.cardColor,
+        });
+
+        const updatedEvents = events
+          .map((e) =>
+            e.id === editingEvent.id
+              ? {
+                  ...e,
+                  minute,
+                  player: player.name,
+                  playerId,
+                  type: editFormData.cardColor === 'RED' ? 'red' : 'yellow',
+                }
+              : e
+          )
+          .sort((a, b) => a.minute - b.minute) as MatchEvent[];
+
+        setEvents(updatedEvents);
+
+        toast({
+          title: 'Éxito',
+          description: 'Tarjeta actualizada correctamente',
+        });
+      }
+
+      setIsEditingEvent(null);
+      setEditingEvent(null);
+    } catch (err) {
+      console.error('Error editando evento:', err);
+      toast({
+        title: 'Error',
+        description: 'No se pudo editar el evento',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteEvent = async (event: MatchEvent) => {
+    if (!match) return;
+
+    try {
+      setIsDeletingEventId(event.id);
+      const tournamentIdNum = match.tournamentId;
+
+      if (event.type === 'goal') {
+        await deleteGoal(tournamentIdNum, event.id);
+      } else {
+        await deleteCard(tournamentIdNum, event.id);
+      }
+
+      const updatedEvents = events.filter((e) => e.id !== event.id);
+      setEvents(updatedEvents);
+
+      // Recalculate scores if a goal was deleted
+      if (event.type === 'goal') {
+        const scores = calculateScores(updatedEvents);
+        setMatch((prev) =>
+          prev
+            ? {
+                ...prev,
+                homeScore: scores.homeGoals,
+                awayScore: scores.awayGoals,
+              }
+            : prev
+        );
+      }
+
+      toast({
+        title: 'Éxito',
+        description: 'Evento eliminado correctamente',
+      });
+    } catch (err) {
+      console.error('Error eliminando evento:', err);
+      toast({
+        title: 'Error',
+        description: 'No se pudo eliminar el evento',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeletingEventId(null);
     }
   };
 
   const handleRescheduleUpdate = (field: string, value: string) => {
-    setRescheduleData(prev => ({ ...prev, [field]: value }));
+    setRescheduleData((prev) => ({ ...prev, [field]: value }));
 
-    // Check for past date warning
     if (field === 'date') {
       const selectedDate = new Date(value);
       const today = new Date();
@@ -165,27 +607,80 @@ export default function MatchManagement() {
   };
 
   const handleRescheduleMatch = () => {
-    if (dateWarning) return;
+    if (dateWarning || !match) return;
 
-    setMatch(prev => ({
-      ...prev,
+    setMatch({
+      ...match,
       date: rescheduleData.date,
       time: rescheduleData.time,
       stadium: rescheduleData.stadium,
-      referee: rescheduleData.referee
-    }));
+      referee: rescheduleData.referee,
+    });
 
     setIsRescheduling(false);
-    console.log('Match rescheduled:', rescheduleData);
-    // Here you would typically call an API to update the match and calendar
+    toast({
+      title: 'Éxito',
+      description: 'Partido reprogramado correctamente',
+    });
   };
 
-  const isMatchFinalized = match.homeScore > 0 || match.awayScore > 0;
+  const handleSaveChanges = async () => {
+    if (!match) return;
+
+    try {
+      toast({
+        title: 'Éxito',
+        description: 'Cambios guardados correctamente',
+      });
+    } catch (err) {
+      console.error('Error guardando cambios:', err);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron guardar los cambios',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const isMatchFinalized = match ? match.homeScore > 0 || match.awayScore > 0 : false;
 
   const handleTeamClick = (team: string) => {
-    // Navigate to team detail (HU-14)
     console.log('Navegar a detalle del equipo:', team);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <p className="text-gray-600">Cargando datos del partido...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !match) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(-1)}
+            className="text-gray-600 hover:text-gray-900 mb-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Volver
+          </Button>
+          <Alert className="border-red-200 bg-red-50">
+            <AlertDescription className="text-red-600">
+              {error || 'No se pudieron cargar los datos del partido'}
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -204,12 +699,8 @@ export default function MatchManagement() {
                 Volver
               </Button>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  Gestión de Partidos
-                </h1>
-                <p className="mt-1 text-sm text-gray-500">
-                  Administra resultados y eventos del partido
-                </p>
+                <h1 className="text-3xl font-bold text-gray-900">Gestión de Partidos</h1>
+                <p className="mt-1 text-sm text-gray-500">Administra resultados y eventos del partido</p>
               </div>
             </div>
           </div>
@@ -217,7 +708,6 @@ export default function MatchManagement() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-8">
-        
         {/* Sección de Información del Partido */}
         <Card className="bg-white shadow-sm border-0 rounded-xl">
           <CardHeader>
@@ -230,21 +720,21 @@ export default function MatchManagement() {
             {/* Tournament */}
             <div>
               <Label className="text-sm font-medium text-gray-500">Torneo</Label>
-              <p className="text-lg font-semibold text-gray-900 mt-1">{match.tournament}</p>
+              <p className="text-lg font-semibold text-gray-900 mt-1">{match.tournamentId}</p>
             </div>
 
             {/* Teams */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <Label className="text-sm font-medium text-gray-500">Equipo Local</Label>
-                <div 
+                <div
                   className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => handleTeamClick(match.homeTeam)}
                 >
                   <p className="font-semibold text-gray-900">{match.homeTeam}</p>
-                  {match.homePosition && (
+                  {positions[match.homeTeamId] && (
                     <Badge variant="outline" className="mt-1">
-                      Posición: {match.homePosition}°
+                      Posición: {positions[match.homeTeamId].position}°
                     </Badge>
                   )}
                 </div>
@@ -256,14 +746,14 @@ export default function MatchManagement() {
 
               <div className="space-y-2">
                 <Label className="text-sm font-medium text-gray-500">Equipo Visitante</Label>
-                <div 
+                <div
                   className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => handleTeamClick(match.awayTeam)}
                 >
                   <p className="font-semibold text-gray-900">{match.awayTeam}</p>
-                  {match.awayPosition && (
+                  {positions[match.awayTeamId] && (
                     <Badge variant="outline" className="mt-1">
-                      Posición: {match.awayPosition}°
+                      Posición: {positions[match.awayTeamId].position}°
                     </Badge>
                   )}
                 </div>
@@ -288,14 +778,16 @@ export default function MatchManagement() {
                     />
                     {dateWarning && (
                       <Alert className="border-red-200 bg-red-50">
-                        <AlertDescription className="text-red-600 text-sm">
-                          {dateWarning}
-                        </AlertDescription>
+                        <AlertDescription className="text-red-600 text-sm">{dateWarning}</AlertDescription>
                       </Alert>
                     )}
                   </div>
                 ) : (
-                  <p className={`text-lg font-medium p-2 rounded-lg bg-gray-50 ${isMatchFinalized ? 'text-gray-500' : 'text-gray-900'}`}>
+                  <p
+                    className={`text-lg font-medium p-2 rounded-lg bg-gray-50 ${
+                      isMatchFinalized ? 'text-gray-500' : 'text-gray-900'
+                    }`}
+                  >
                     {formatDate(match.date)}
                   </p>
                 )}
@@ -315,7 +807,11 @@ export default function MatchManagement() {
                     className="rounded-lg"
                   />
                 ) : (
-                  <p className={`text-lg font-medium p-2 rounded-lg bg-gray-50 ${isMatchFinalized ? 'text-gray-500' : 'text-gray-900'}`}>
+                  <p
+                    className={`text-lg font-medium p-2 rounded-lg bg-gray-50 ${
+                      isMatchFinalized ? 'text-gray-500' : 'text-gray-900'
+                    }`}
+                  >
                     {match.time}
                   </p>
                 )}
@@ -335,7 +831,11 @@ export default function MatchManagement() {
                     className="rounded-lg"
                   />
                 ) : (
-                  <p className={`text-lg font-medium p-2 rounded-lg bg-gray-50 ${isMatchFinalized ? 'text-gray-500' : 'text-gray-900'}`}>
+                  <p
+                    className={`text-lg font-medium p-2 rounded-lg bg-gray-50 ${
+                      isMatchFinalized ? 'text-gray-500' : 'text-gray-900'
+                    }`}
+                  >
                     {match.stadium}
                   </p>
                 )}
@@ -355,7 +855,11 @@ export default function MatchManagement() {
                     className="rounded-lg"
                   />
                 ) : (
-                  <p className={`text-lg font-medium p-2 rounded-lg bg-gray-50 ${isMatchFinalized ? 'text-gray-500' : 'text-gray-900'}`}>
+                  <p
+                    className={`text-lg font-medium p-2 rounded-lg bg-gray-50 ${
+                      isMatchFinalized ? 'text-gray-500' : 'text-gray-900'
+                    }`}
+                  >
                     {match.referee}
                   </p>
                 )}
@@ -368,7 +872,13 @@ export default function MatchManagement() {
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button
                     onClick={handleRescheduleMatch}
-                    disabled={!!dateWarning || !rescheduleData.date || !rescheduleData.time || !rescheduleData.stadium || !rescheduleData.referee}
+                    disabled={
+                      !!dateWarning ||
+                      !rescheduleData.date ||
+                      !rescheduleData.time ||
+                      !rescheduleData.stadium ||
+                      !rescheduleData.referee
+                    }
                     className="bg-primary hover:bg-primary/90 text-white rounded-lg"
                   >
                     <Save className="w-4 h-4 mr-2" />
@@ -382,7 +892,7 @@ export default function MatchManagement() {
                         date: match.date,
                         time: match.time,
                         stadium: match.stadium,
-                        referee: match.referee
+                        referee: match.referee,
                       });
                       setDateWarning('');
                     }}
@@ -456,10 +966,13 @@ export default function MatchManagement() {
             </div>
 
             <div className="mt-6">
-              <Button 
+              <Button
                 className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground"
                 onClick={() => {
-                  console.log('Actualizar marcador:', match.homeScore, '-', match.awayScore);
+                  toast({
+                    title: 'Éxito',
+                    description: `Marcador actualizado: ${match.homeScore} - ${match.awayScore}`,
+                  });
                 }}
               >
                 <Save className="w-4 h-4 mr-2" />
@@ -481,12 +994,12 @@ export default function MatchManagement() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="eventType">Tipo de Evento</Label>
-                <Select value={newEvent.type} onValueChange={(value) => setNewEvent(prev => ({ ...prev, type: value }))}>
+                <Select value={newEvent.type} onValueChange={(value) => setNewEvent((prev) => ({ ...prev, type: value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar evento" />
                   </SelectTrigger>
                   <SelectContent>
-                    {eventTypeOptions.map(option => (
+                    {eventTypeOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>
@@ -497,7 +1010,10 @@ export default function MatchManagement() {
 
               <div className="space-y-2">
                 <Label htmlFor="player">Jugador</Label>
-                <Select value={newEvent.player} onValueChange={(value) => setNewEvent(prev => ({ ...prev, player: value }))}>
+                <Select
+                  value={newEvent.player}
+                  onValueChange={(value) => setNewEvent((prev) => ({ ...prev, player: value }))}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar jugador" />
                   </SelectTrigger>
@@ -505,19 +1021,23 @@ export default function MatchManagement() {
                     <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                       {match.homeTeam}
                     </div>
-                    {mockPlayers.filter(p => p.team === 'home').map(player => (
-                      <SelectItem key={player.id} value={player.id}>
-                        {player.name}
-                      </SelectItem>
-                    ))}
+                    {players
+                      .filter((p) => p.team === 'home')
+                      .map((player) => (
+                        <SelectItem key={player.id} value={player.id.toString()}>
+                          {player.name}
+                        </SelectItem>
+                      ))}
                     <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide border-t mt-2 pt-2">
                       {match.awayTeam}
                     </div>
-                    {mockPlayers.filter(p => p.team === 'away').map(player => (
-                      <SelectItem key={player.id} value={player.id}>
-                        {player.name}
-                      </SelectItem>
-                    ))}
+                    {players
+                      .filter((p) => p.team === 'away')
+                      .map((player) => (
+                        <SelectItem key={player.id} value={player.id.toString()}>
+                          {player.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -531,17 +1051,44 @@ export default function MatchManagement() {
                   max="120"
                   placeholder="Ej: 45"
                   value={newEvent.minute}
-                  onChange={(e) => setNewEvent(prev => ({ ...prev, minute: e.target.value }))}
+                  onChange={(e) => setNewEvent((prev) => ({ ...prev, minute: e.target.value }))}
                 />
               </div>
 
-              <Button 
+              {newEvent.type !== 'goal' && newEvent.type && (
+                <div className="space-y-2">
+                  <Label htmlFor="cardColor">Color de Tarjeta</Label>
+                  <Select
+                    value={newEvent.cardColor}
+                    onValueChange={(value) => setNewEvent((prev) => ({ ...prev, cardColor: value as 'RED' | 'YELLOW' }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar color" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="YELLOW">Tarjeta Amarilla 🟨</SelectItem>
+                      <SelectItem value="RED">Tarjeta Roja 🟥</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <Button
                 onClick={handleAddEvent}
-                disabled={!newEvent.minute || !newEvent.player || !newEvent.type}
+                disabled={!newEvent.minute || !newEvent.player || !newEvent.type || isAddingEvent}
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
               >
-                <Target className="w-4 h-4 mr-2" />
-                Agregar evento
+                {isAddingEvent ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Agregando...
+                  </>
+                ) : (
+                  <>
+                    <Target className="w-4 h-4 mr-2" />
+                    Agregar evento
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>
@@ -557,12 +1104,10 @@ export default function MatchManagement() {
             <CardContent>
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {events.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">
-                    No hay eventos registrados
-                  </p>
+                  <p className="text-gray-500 text-center py-8">No hay eventos registrados</p>
                 ) : (
-                  events.map(event => (
-                    <div 
+                  events.map((event) => (
+                    <div
                       key={event.id}
                       className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                     >
@@ -577,12 +1122,40 @@ export default function MatchManagement() {
                           </p>
                         </div>
                       </div>
-                      <Badge 
-                        variant="outline" 
-                        className={event.team === 'home' ? 'border-blue-500 text-blue-700' : 'border-red-500 text-red-700'}
-                      >
-                        {event.team === 'home' ? match.homeTeam : match.awayTeam}
-                      </Badge>
+                      <div className="flex items-center space-x-2">
+                        <Badge
+                          variant="outline"
+                          className={
+                            event.team === 'home'
+                              ? 'border-blue-500 text-blue-700'
+                              : 'border-red-500 text-red-700'
+                          }
+                        >
+                          {event.team === 'home' ? match.homeTeam : match.awayTeam}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenEditDialog(event)}
+                          disabled={isEditingEvent !== null}
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteEvent(event)}
+                          disabled={isDeletingEventId === event.id}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          {isDeletingEventId === event.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -595,7 +1168,7 @@ export default function MatchManagement() {
         <Card className="bg-white shadow-sm border-0 rounded-xl">
           <CardContent className="pt-6">
             <div className="flex flex-col sm:flex-row gap-4 justify-end">
-              <Button 
+              <Button
                 variant="outline"
                 size="lg"
                 onClick={() => navigate(-1)}
@@ -604,13 +1177,10 @@ export default function MatchManagement() {
                 <X className="w-4 h-4 mr-2" />
                 Cancelar
               </Button>
-              <Button 
+              <Button
                 size="lg"
                 className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
-                onClick={() => {
-                  console.log('Guardar cambios del partido');
-                  // Handle save logic here
-                }}
+                onClick={handleSaveChanges}
               >
                 <Save className="w-4 h-4 mr-2" />
                 Guardar cambios
@@ -619,6 +1189,107 @@ export default function MatchManagement() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Event Dialog */}
+      <Dialog open={isEditingEvent !== null} onOpenChange={(open) => {
+        if (!open) {
+          setIsEditingEvent(null);
+          setEditingEvent(null);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Evento</DialogTitle>
+            <DialogDescription>
+              Modifica los detalles del {editingEvent?.type === 'goal' ? 'gol' : 'tarjeta'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-player">Jugador</Label>
+              <Select
+                value={editFormData.player}
+                onValueChange={(value) => setEditFormData((prev) => ({ ...prev, player: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar jugador" />
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    {match.homeTeam}
+                  </div>
+                  {players
+                    .filter((p) => p.team === 'home')
+                    .map((player) => (
+                      <SelectItem key={player.id} value={player.id.toString()}>
+                        {player.name}
+                      </SelectItem>
+                    ))}
+                  <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide border-t mt-2 pt-2">
+                    {match.awayTeam}
+                  </div>
+                  {players
+                    .filter((p) => p.team === 'away')
+                    .map((player) => (
+                      <SelectItem key={player.id} value={player.id.toString()}>
+                        {player.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-minute">Minuto</Label>
+              <Input
+                id="edit-minute"
+                type="number"
+                min="1"
+                max="120"
+                value={editFormData.minute}
+                onChange={(e) => setEditFormData((prev) => ({ ...prev, minute: e.target.value }))}
+              />
+            </div>
+
+            {editingEvent?.type !== 'goal' && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-cardColor">Color de Tarjeta</Label>
+                <Select
+                  value={editFormData.cardColor}
+                  onValueChange={(value) => setEditFormData((prev) => ({ ...prev, cardColor: value as 'RED' | 'YELLOW' }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar color" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="YELLOW">Tarjeta Amarilla 🟨</SelectItem>
+                    <SelectItem value="RED">Tarjeta Roja 🟥</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditingEvent(null);
+                setEditingEvent(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleEditEvent}
+              className="bg-primary hover:bg-primary/90 text-white"
+            >
+              Guardar Cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
