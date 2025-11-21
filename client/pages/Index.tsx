@@ -10,21 +10,21 @@ export default function Index() {
     {
       id: 1,
       name: "Copa Primavera 2025",
-      startDate: "05 de Septiembre, 2025",
+      startDate: "05 de Diciembre, 2025",
       status: "en curso",
       statusColor: "bg-blue-500 text-white",
     },
     {
       id: 2,
       name: "Liga Juvenil Bogotá",
-      startDate: "22 de Septiembre, 2025", 
+      startDate: "22 de Diciembre, 2025", 
       status: "pendiente",
       statusColor: "bg-yellow-500 text-white",
     },
     {
       id: 3,
       name: "Torneo de Verano",
-      startDate: "10 de Agosto, 2025",
+      startDate: "10 de Diciembre, 2025",
       status: "finalizado",
       statusColor: "bg-green-500 text-white",
     },
@@ -50,17 +50,7 @@ export default function Index() {
         </p>
 
         {/* Main Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-          <Link to="/lista-torneos">
-            <Button 
-              size="lg" 
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-4 text-lg rounded-lg shadow-lg transition-all duration-200 transform hover:scale-105 w-full sm:w-auto"
-            >
-              <Eye className="w-5 h-5 mr-2" />
-              Ver Torneos
-            </Button>
-          </Link>
-          
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">   
           <Link to="/login">
             <Button 
               variant="outline" 
