@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Trophy, Settings, Info, Users, Zap } from "lucide-react";
+import { Calendar, Settings, Info, Zap } from "lucide-react";
 import { generarLlavesEnfrentamientos } from "@/services/matchGeneratorService";
+import { toast } from "sonner";
 
 interface MatchGenerated {
   id: string;
@@ -15,9 +16,9 @@ interface MatchGenerated {
 }
 
 export default function GeneracionAutomatica() {
+  const { idTournament } = useParams<{ idTournament: string }>();
   const [generacionActiva, setGeneracionActiva] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [formatoSeleccionado, setFormatoSeleccionado] = useState<"liga" | "eliminacion" | "repechaje">("liga");
   const [partidosBackend, setPartidosBackend] = useState<MatchGenerated[] | null>(null);
 
   // ============================
@@ -41,21 +42,29 @@ export default function GeneracionAutomatica() {
   };
 
   // ============================
-  // LLAMADA AL BACKEND
+  // LLAMADA AL BACKEND - CORREGIDA
   // ============================
   const generarCalendario = async () => {
+    if (!idTournament) {
+      toast.error("No se encontró el ID del torneo");
+      return;
+    }
+
     try {
       setLoading(true);
       setGeneracionActiva(true);
 
-      const tournamentId = 1; // <-- Reemplaza con ID real
-
-      const data = await generarLlavesEnfrentamientos(tournamentId);
+      const data = await generarLlavesEnfrentamientos(parseInt(idTournament));
 
       const partidosMapeados = mapBackendMatches(data);
       setPartidosBackend(partidosMapeados);
-    } catch (error) {
+      
+      toast.success(`Se generaron ${partidosMapeados.length} partidos exitosamente`);
+      
+    } catch (error: any) {
       console.error("Error generando partidos:", error);
+      const errorMessage = error?.message || "Error al generar el calendario";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -81,6 +90,25 @@ export default function GeneracionAutomatica() {
     });
   };
 
+  // Mostrar error si no hay ID de torneo
+  if (!idTournament) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-red-100 text-red-600 p-4 rounded-lg">
+            <h3 className="text-lg font-medium">Error: ID de torneo no encontrado</h3>
+            <p className="mt-2">La URL no contiene el ID del torneo.</p>
+            <Link to="/dashboard-organizador">
+              <Button className="mt-4">
+                Volver al dashboard
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 py-8 px-4">
       <div className="max-w-6xl mx-auto">
@@ -94,7 +122,9 @@ export default function GeneracionAutomatica() {
               Programación Automática de Partidos
             </h1>
           </div>
-          <p className="text-gray-600">Genera automáticamente el calendario de tu torneo</p>
+          <p className="text-gray-600">
+            Genera automáticamente el calendario del torneo #{idTournament}
+          </p>
         </div>
 
         {/* Main Card */}
@@ -105,14 +135,14 @@ export default function GeneracionAutomatica() {
                 <Zap className="w-6 h-6" />
                 Generación Automática
               </CardTitle>
-              <Link to="/calendario">
+              <Link to={`/tournament/${idTournament}/upcoming-matches`}>
                 <Button
                   variant="secondary"
                   size="sm"
                   className="bg-white/20 hover:bg-white/30 text-white border-white/30"
                 >
                   <Calendar className="w-4 h-4 mr-2" />
-                  Ver Calendario
+                  Ver Partidos Programados
                 </Button>
               </Link>
             </div>
@@ -139,8 +169,11 @@ export default function GeneracionAutomatica() {
                 <div className="mt-4">
                   <div className="flex items-center justify-center gap-2 text-green-600 font-medium">
                     <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
-                    Calendario generado exitosamente
+                    {partidosBackend.length} partidos generados exitosamente
                   </div>
+                  <p className="text-sm text-gray-600 mt-2">
+                    Los partidos ahora están disponibles en "Partidos Programados"
+                  </p>
                 </div>
               )}
             </div>
@@ -149,21 +182,23 @@ export default function GeneracionAutomatica() {
             {generacionActiva && loading && (
               <div className="flex flex-col items-center justify-center py-10">
                 <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                <p className="mt-4 text-blue-700 font-medium">Generando partidos...</p>
+                <p className="mt-4 text-blue-700 font-medium">Generando partidos para el torneo #{idTournament}...</p>
               </div>
             )}
 
             {/* Generated Calendar */}
             {generacionActiva && !loading && partidosBackend && (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Calendario Generado</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Calendario Generado ({partidosBackend.length} partidos)
+                </h3>
 
                 {/* Table Header */}
                 <div className="grid grid-cols-4 gap-4 pb-3 border-b border-gray-200">
                   <div className="text-sm font-semibold text-gray-700">Fecha</div>
                   <div className="text-sm font-semibold text-gray-700">Hora</div>
-                  <div className="text-sm font-semibold text-gray-700">Equipo 1</div>
-                  <div className="text-sm font-semibold text-gray-700">Equipo 2</div>
+                  <div className="text-sm font-semibold text-gray-700">Equipo Local</div>
+                  <div className="text-sm font-semibold text-gray-700">Equipo Visitante</div>
                 </div>
 
                 {/* Matches Rows */}
@@ -216,10 +251,12 @@ export default function GeneracionAutomatica() {
               <div className="flex items-start gap-3">
                 <Info className="w-5 h-5 text-gray-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-1">Información del Sistema</h4>
+                  <h4 className="font-medium text-gray-900 mb-1">¿Qué hace este sistema?</h4>
                   <p className="text-gray-700 text-sm">
-                    El sistema genera automáticamente el formato de torneo según el número de equipos inscritos. 
-                    Los horarios y fechas se asignan optimizando la disponibilidad de campos y evitando conflictos.
+                    • Genera todos los enfrentamientos entre equipos del torneo<br/>
+                    • Asigna fechas y horarios automáticamente<br/>
+                    • Los partidos generados aparecerán en "Partidos Programados"<br/>
+                    • Desde allí podrás editarlos, eliminarlos o acceder a su gestión detallada
                   </p>
                 </div>
               </div>
@@ -229,10 +266,9 @@ export default function GeneracionAutomatica() {
 
         {/* Footer */}
         <div className="text-center mt-8 text-gray-500 text-sm">
-          <p>Sistema de Gestión de Torneos de Fútbol v1.0</p>
+          <p>Sistema de Gestión de Torneos de Fútbol v1.0 - Torneo #{idTournament}</p>
         </div>
       </div>
     </div>
   );
 }
-
