@@ -190,7 +190,7 @@ export default function Dashboard() {
 
           {/* Estadísticas principales */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Link to="/lista-torneos">
+            <Link to="/gestion-competencias">
               <Card className="hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02] cursor-pointer border-0 shadow-md bg-blue-50">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -214,7 +214,7 @@ export default function Dashboard() {
               </Card>
             </Link>
 
-            <Link to="/lista-torneos">
+            <Link to="/gestion-competencias">
               <Card className="hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02] cursor-pointer border-0 shadow-md bg-gray-50">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -258,7 +258,7 @@ export default function Dashboard() {
               </Card>
             </Link>
 
-            <Link to="/teams">
+            <Link to="/tournament/20/teams-manage">
               <Card className="hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02] cursor-pointer border-0 shadow-md bg-gray-50">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">

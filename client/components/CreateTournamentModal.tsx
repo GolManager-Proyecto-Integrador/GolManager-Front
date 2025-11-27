@@ -283,7 +283,7 @@ export function CreateTournamentModal({ isOpen, onClose, onCreated }: CreateTour
               </Label>
               <Select
                 value={formData.format}
-                onValueChange={(value: 'Liga' | 'Eliminatoria' | 'Repechaje') => {
+                onValueChange={(value: 'Liga') => {
                   setFormData(prev => ({ 
                     ...prev, 
                     format: value,

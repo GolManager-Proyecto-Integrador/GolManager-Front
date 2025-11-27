@@ -160,8 +160,38 @@ const formatDateTimeForMessage = (dateTime: string): string => {
 
 export default function UpcomingMatches() {
   const navigate = useNavigate();
-  const { tournamentId } = useParams<{ tournamentId: string }>();
+  const { idTournament } = useParams<{ idTournament: string }>(); // CAMBIADO: tournamentId → idTournament
   
+  // Verificar si idTournament existe
+  useEffect(() => {
+    if (!idTournament) {
+      console.error('❌ idTournament is missing from URL');
+      toast.error('ID de torneo no encontrado');
+      navigate('/dashboard-organizador');
+      return;
+    }
+  }, [idTournament, navigate]);
+
+  // Si no hay idTournament, mostrar mensaje de error
+  if (!idTournament) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-red-100 text-red-600 p-4 rounded-lg">
+            <h3 className="text-lg font-medium">Error: ID de torneo no encontrado</h3>
+            <p className="mt-2">La URL no contiene el ID del torneo.</p>
+            <Button 
+              onClick={() => navigate('/dashboard-organizador')}
+              className="mt-4"
+            >
+              Volver al dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDate, setFilterDate] = useState('');
   const [matches, setMatches] = useState<UpcomingMatch[]>([]);
@@ -192,33 +222,84 @@ export default function UpcomingMatches() {
   });
 
   // Cargar datos iniciales
-  useEffect(() => {
-    const loadData = async () => {
-      if (!tournamentId) return;
-      
-      try {
-        setLoading(true);
-        const [matchesData, teamsData, refereesData, tournamentData] = await Promise.all([
-          getUpcomingMatches(parseInt(tournamentId), 100),
-          getTournamentTeams(parseInt(tournamentId)),
-          getReferees(),
-          getTournamentDetails(parseInt(tournamentId))
-        ]);
+  // Cargar datos iniciales - VERSIÓN CORREGIDA
+useEffect(() => {
+  const loadData = async () => {
+    if (!idTournament) return;
+    
+    try {
+      setLoading(true);
+      console.log('🔄 Starting to load data for tournament:', idTournament);
 
-        setMatches(matchesData.matches || []);
-        setTeams(teamsData.teams || []);
-        setReferees(refereesData.referees || []);
-        setTournament(tournamentData);
-      } catch (error) {
-        console.error('Error loading data:', error);
-        toast.error('Error al cargar los datos');
-      } finally {
-        setLoading(false);
+      // Test cada endpoint individualmente
+      const matchesData = await getUpcomingMatches(parseInt(idTournament), 100);
+      const teamsData = await getTournamentTeams(parseInt(idTournament));
+      const refereesData = await getReferees();
+
+      // DEBUG: Ver EXACTAMENTE qué devuelve getTournamentDetails
+      console.log('📋 Testing getTournamentDetails...');
+      const tournamentData = await getTournamentDetails(parseInt(idTournament));
+      console.log('✅ Tournament data (RAW):', tournamentData);
+      console.log('🔍 Is Array?:', Array.isArray(tournamentData));
+      console.log('🔍 Array length:', Array.isArray(tournamentData) ? tournamentData.length : 'Not an array');
+
+      // CORRECCIÓN: La API devuelve un array, necesitamos encontrar el torneo específico
+      let tournamentName = '';
+      let foundTournament = null;
+
+      if (Array.isArray(tournamentData)) {
+        console.log('🔍 Searching for tournament with id:', idTournament);
+        
+        // Buscar el torneo con el ID específico
+        foundTournament = tournamentData.find(t => t.id === parseInt(idTournament));
+        
+        if (foundTournament) {
+          console.log('✅ Found tournament:', foundTournament);
+          tournamentName = foundTournament.name;
+        } else if (tournamentData.length > 0) {
+          // Si no encuentra por ID, usar el primer elemento
+          console.log('⚠️ Tournament not found by ID, using first element');
+          foundTournament = tournamentData[0];
+          tournamentName = foundTournament.name || `Torneo #${idTournament}`;
+        } else {
+          console.warn('⚠️ Empty tournaments array');
+          tournamentName = `Torneo #${idTournament}`;
+        }
+      } else if (tournamentData && tournamentData.name) {
+        // Si por alguna razón no es array sino objeto directo
+        tournamentName = tournamentData.name;
+        foundTournament = tournamentData;
+      } else {
+        tournamentName = `Torneo #${idTournament}`;
+        console.warn('⚠️ No se pudo extraer el nombre del torneo, estructura desconocida');
       }
-    };
 
-    loadData();
-  }, [tournamentId]);
+      console.log('🎯 Final tournament name:', tournamentName);
+
+      // Resto del código...
+      setMatches(matchesData.matches || []);
+      setTeams(teamsData.teams || []);
+      setReferees(refereesData.referees || []);
+      
+      setTournament({
+        id: parseInt(idTournament),
+        name: tournamentName
+      });
+
+    } catch (error) {
+      console.error('💥 Error loading data:', error);
+      toast.error('Error al cargar los datos');
+      setTournament({
+        id: parseInt(idTournament),
+        name: `Torneo #${idTournament}`
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadData();
+}, [idTournament]);
 
   const filteredMatches = useMemo(() => {
     return matches.filter(match => {
@@ -251,8 +332,8 @@ export default function UpcomingMatches() {
       return;
     }
 
-    // Navegar a la nueva ruta
-    navigate(`/tournament/${tournamentId}/match/${match.matchId}`);
+    // Navegar a la nueva ruta - CAMBIADO: tournamentId → idTournament
+    navigate(`/tournament/${idTournament}/match/${match.matchId}`);
   };
 
   const handleBackClick = () => {
@@ -286,7 +367,7 @@ export default function UpcomingMatches() {
   };
 
   const handleSaveEdit = async () => {
-    if (editingMatch && tournamentId) {
+    if (editingMatch && idTournament) { // CAMBIADO: tournamentId → idTournament
       try {
         const matchDateTime = new Date(`${editFormData.date}T${editFormData.time}`);
         
@@ -297,7 +378,7 @@ export default function UpcomingMatches() {
           refereeId: editFormData.refereeId
         };
 
-        await updateMatch(parseInt(tournamentId), updateData);
+        await updateMatch(parseInt(idTournament), updateData); // CAMBIADO
         
         // Actualizar estado local - también actualizar el nombre del árbitro
         const updatedRefereeName = referees.find(ref => ref.id === editFormData.refereeId)?.name || editingMatch.refereeName;
@@ -326,9 +407,9 @@ export default function UpcomingMatches() {
   };
 
   const handleConfirmDelete = async () => {
-    if (deleteConfirmMatch && tournamentId) {
+    if (deleteConfirmMatch && idTournament) { // CAMBIADO: tournamentId → idTournament
       try {
-        await deleteMatch(parseInt(tournamentId), deleteConfirmMatch.matchId);
+        await deleteMatch(parseInt(idTournament), deleteConfirmMatch.matchId); // CAMBIADO
         
         setMatches(matches.filter(m => m.matchId !== deleteConfirmMatch.matchId));
         setDeleteConfirmMatch(null);
@@ -381,7 +462,7 @@ export default function UpcomingMatches() {
   };
 
   const handleSaveSchedule = async () => {
-    if (tournamentId && scheduleFormData.homeTeamId && scheduleFormData.awayTeamId && 
+    if (idTournament && scheduleFormData.homeTeamId && scheduleFormData.awayTeamId && // CAMBIADO: tournamentId → idTournament
         scheduleFormData.date && scheduleFormData.time && scheduleFormData.stadium && 
         scheduleFormData.refereeId) {
       try {
@@ -390,13 +471,13 @@ export default function UpcomingMatches() {
         const matchData = {
           homeTeamId: scheduleFormData.homeTeamId,
           awayTeamId: scheduleFormData.awayTeamId,
-          tournamentId: parseInt(tournamentId),
+          tournamentId: parseInt(idTournament), // CAMBIADO
           stadiumName: scheduleFormData.stadium,
           referee: scheduleFormData.refereeId,
           matchDate: matchDateTime.toISOString()
         };
 
-        const newMatch = await createMatch(parseInt(tournamentId), matchData);
+        const newMatch = await createMatch(parseInt(idTournament), matchData); // CAMBIADO
         
         // Obtener el nombre del árbitro para mostrarlo en la lista
         const refereeName = referees.find(ref => ref.id === scheduleFormData.refereeId)?.name || '';
@@ -827,7 +908,7 @@ export default function UpcomingMatches() {
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Tournament (Read-only) */}
+            {/* Tournament (Read-only) - CON DEBUG CORRECTO */}
             <div>
               <Label htmlFor="tournament" className="text-sm font-medium text-gray-700">
                 Torneo al cual pertenece el partido
@@ -835,10 +916,15 @@ export default function UpcomingMatches() {
               <Input
                 id="tournament"
                 type="text"
-                value={tournament?.name || ''}
+                value={tournament?.name || 'Cargando nombre...'}
                 disabled
                 className="mt-1 rounded-lg border-gray-300 bg-gray-50 text-gray-500 cursor-not-allowed"
               />
+              {/* Debug en consola - se ejecuta pero no se renderiza */}
+              {(() => {
+                console.log('Tournament data in dialog:', tournament);
+                return null;
+              })()}
             </div>
 
             {/* Home Team */}
