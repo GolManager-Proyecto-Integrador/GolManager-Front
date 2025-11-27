@@ -102,8 +102,7 @@ const formatDate = (dateString: string) => {
 };
 
 export default function MatchManagement() {
-  const { id: matchId } = useParams();
-  const { tournamentId } = useParams();
+  const { tournamentId, matchId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -170,29 +169,57 @@ export default function MatchManagement() {
           getTournamentPositions(tournamentIdNum),
         ]);
 
-        // Set match data
-        setMatch({
-          id: matchDetailsData.id,
-          tournamentId: matchDetailsData.tournamentId,
-          homeTeamId: matchDetailsData.homeTeamId,
-          awayTeamId: matchDetailsData.awayTeamId,
-          homeTeam: matchDetailsData.homeTeam,
-          awayTeam: matchDetailsData.awayTeam,
-          date: matchDetailsData.date,
-          time: matchDetailsData.time,
-          stadium: matchDetailsData.stadium,
-          referee: matchDetailsData.referee,
-          homeScore: matchDetailsData.homeScore || 0,
-          awayScore: matchDetailsData.awayScore || 0,
-        });
+// Fix backend naming → Adapt to frontend structure
+let raw = matchDetailsData.matchDateTIme;
 
-        // Set initial reschedule data
-        setRescheduleData({
-          date: matchDetailsData.date,
-          time: matchDetailsData.time,
-          stadium: matchDetailsData.stadium,
-          referee: matchDetailsData.referee,
-        });
+let fixedDate = "";
+let fixedTime = "";
+
+// Si viene null, undefined o vacío → no intentar formatear
+if (raw && typeof raw === "string") {
+  
+  // Si viene con espacio en vez de T → corregir
+  if (raw.includes(" ")) {
+    raw = raw.replace(" ", "T");
+  }
+
+  const dateObj = new Date(raw);
+
+  if (!isNaN(dateObj.getTime())) {
+    fixedDate = raw.split("T")[0];
+    fixedTime = raw.split("T")[1]?.substring(0, 5) || "";
+  }
+}
+
+console.log("FECHA PROCESADA →", { raw, fixedDate, fixedTime });
+
+
+setMatch({
+  id: matchDetailsData.matchId,
+  tournamentId: matchDetailsData.tournamentId,
+
+  homeTeamId: matchDetailsData.homeTeamId,
+  awayTeamId: matchDetailsData.awayTeamId,
+  homeTeam: matchDetailsData.homeTeam,
+  awayTeam: matchDetailsData.awayTeam,
+
+  date: fixedDate,
+  time: fixedTime,
+  stadium: matchDetailsData.stadium,
+  referee: matchDetailsData.refereeName,
+
+  homeScore: matchDetailsData.goalsHomeTeam ?? 0,
+  awayScore: matchDetailsData.goalsAwayTeam ?? 0,
+});
+
+// initial reschedule data
+setRescheduleData({
+  date: fixedDate,
+  time: fixedTime,
+  stadium: matchDetailsData.stadium,
+  referee: matchDetailsData.refereeName,
+});
+
 
         // Build positions map
         const positionsMap: Record<number, Position> = {};
@@ -208,9 +235,9 @@ export default function MatchManagement() {
         if (eventsData.listGoals && Array.isArray(eventsData.listGoals)) {
           eventsData.listGoals.forEach((goal: any) => {
             allEvents.push({
-              id: goal.id,
-              minute: goal.goalMinute,
-              player: goal.playerName || goal.player,
+              id: goal.goalId,
+              minute: goal.minute,
+              player: goal.playerTeamName || goal.player,
               playerId: goal.playerId,
               type: 'goal',
               team: goal.teamId === matchDetailsData.homeTeamId ? 'home' : 'away',
@@ -220,9 +247,9 @@ export default function MatchManagement() {
         if (eventsData.listCards && Array.isArray(eventsData.listCards)) {
           eventsData.listCards.forEach((card: any) => {
             allEvents.push({
-              id: card.id,
-              minute: card.cardMinute,
-              player: card.playerName || card.player,
+              id: card.cardId,
+              minute: card.minute,
+              player: card.playerTeamName || card.player,
               playerId: card.playerId,
               type: card.cardColor === 'RED' ? 'red' : 'yellow',
               team: card.teamId === matchDetailsData.homeTeamId ? 'home' : 'away',
@@ -358,12 +385,12 @@ export default function MatchManagement() {
         });
 
         const newGoalEvent: MatchEvent = {
-          id: goalData.id,
-          minute,
-          player: player.name,
-          playerId,
+          id: goalData.goalId,
+          minute: goalData.minute,
+          player: goalData.playerTeamName,
+          playerId: goalData.playerId,
           type: 'goal',
-          team: player.team,
+          team: goalData.playerTeamId === match.homeTeamId ? 'home' : 'away',
         };
 
         const updatedEvents = [...events, newGoalEvent].sort((a, b) => a.minute - b.minute) as MatchEvent[];
@@ -394,12 +421,12 @@ export default function MatchManagement() {
         });
 
         const newCardEvent: MatchEvent = {
-          id: cardData.id,
-          minute,
-          player: player.name,
-          playerId,
-          type: newEvent.cardColor === 'RED' ? 'red' : 'yellow',
-          team: player.team,
+          id: cardData.cardId,
+          minute: cardData.minute,
+          player: cardData.playerTeamName,
+          playerId: cardData.playerId,
+          type: cardData.cardColor === 'RED' ? 'red' : 'yellow',
+          team: cardData.playerTeamId === match.homeTeamId ? 'home' : 'away',
         };
 
         setEvents((prev) => [...prev, newCardEvent].sort((a, b) => a.minute - b.minute) as MatchEvent[]);

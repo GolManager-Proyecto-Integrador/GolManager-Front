@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Edit3, Users, MapPin, User } from "lucide-react";
+import { ArrowLeft, Edit3, Users, MapPin, User, Home } from "lucide-react";
 
 // 🔹 Importar servicio
 import {
@@ -138,6 +138,15 @@ export default function TeamDetails() {
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Volver
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/dashboard-organizador')}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <Home className="w-4 h-4 mr-2" />
+                Volver al panel
               </Button>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">

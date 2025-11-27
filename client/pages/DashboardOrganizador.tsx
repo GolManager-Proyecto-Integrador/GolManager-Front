@@ -47,9 +47,9 @@ export default function Dashboard() {
   const navigationItems = [
     { icon: LayoutGrid, label: "Dashboard", href: "/dashboard-organizador" },
     { icon: Trophy, label: "Torneos", href: "/gestion-competencias" },
-    { icon: Users, label: "Equipos y jugadores", href: "/teams-manage" },
+    //{ icon: Users, label: "Equipos y jugadores", href: "/teams-manage" },
     { icon: Calendar, label: "Calendario", href: "/calendario" },
-    { icon: BarChart3, label: "Resultados y posiciones", href: "/resultados" },
+    //{ icon: BarChart3, label: "Resultados y posiciones", href: "/resultados" },
   ];
 
   const handleLogout = async () => {

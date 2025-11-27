@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getToken } from "./authService";
 
 // Ajustar esta URL según backend (podemos usar import.meta.env.VITE_API_URL)
 const API_URL = "http://localhost:8085/api/tournaments";

@@ -19,7 +19,7 @@ export interface TournamentData {
   numberOfTeams: number;
   yellowCardsSuspension: number;
   refereeIds: number[];
-  status: string; // 🔹 Ya no es opcional, se calcula automáticamente
+  status: string; // 🔹 Se calcula automáticamente
 }
 
 export interface TeamStanding {

@@ -28,7 +28,7 @@ import {
   Clock,
   Home,
 } from 'lucide-react';
-import { CalendarioService, Match, CreateMatchPayload, Tournament as ApiTournament, Referee as ApiReferee, Team } from '@/services/calendarService';
+import { CalendarioService, Match, CreateMatchPayload, CreatedMatchResponse, Team } from '@/services/calendarService';
 import { useToast } from '@/hooks/use-toast';
 
 interface CalendarMatch {
@@ -47,13 +47,13 @@ interface CalendarMatch {
   goalsAwayTeam: number;
 }
 
-interface LocalTournament {
+interface Tournament {
   id: number;
   name: string;
   teams: { id: number; name: string }[];
 }
 
-interface LocalReferee {
+interface Referee {
   id: number;
   name: string;
 }
@@ -76,8 +76,8 @@ export default function Calendar() {
   const [selectedDayMatches, setSelectedDayMatches] = useState<CalendarMatch[]>([]);
   const [isDayModalOpen, setIsDayModalOpen] = useState(false);
   const [matches, setMatches] = useState<CalendarMatch[]>([]);
-  const [tournaments, setTournaments] = useState<LocalTournament[]>([]);
-  const [referees, setReferees] = useState<LocalReferee[]>([]);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [referees, setReferees] = useState<Referee[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -91,23 +91,16 @@ export default function Calendar() {
     referee: ''
   });
 
-  // Fetch initial data including tournaments and referees
+  // Fetch matches when component mounts or date range changes
   useEffect(() => {
-    const fetchInitialData = async () => {
+    const fetchMatches = async () => {
       setIsLoading(true);
       try {
-        // Cargar torneos desde la API
-        const tournamentsData = await CalendarioService.getTournaments();
-        setTournaments(tournamentsData.map(t => ({ ...t, teams: [] })));
-
-        // Cargar árbitros desde la API
-        const refereesData = await CalendarioService.getReferees();
-        setReferees(refereesData);
-
-        // Cargar partidos (código existente)
+        // Get the first and last day of the current month (or extended range for better data)
         const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
         const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
+        // Extend range to include previous and next months for better UX
         const startDate = new Date(firstDay);
         startDate.setMonth(startDate.getMonth() - 1);
         const endDate = new Date(lastDay);
@@ -144,11 +137,26 @@ export default function Calendar() {
 
         setMatches(convertedMatches);
 
+        // Extract unique tournaments from matches
+        const uniqueTournaments = Array.from(
+          new Map(
+            fetchedMatches.map(m => [m.tournamentId, { id: m.tournamentId, name: m.tournamentName }])
+          ).values()
+        );
+        setTournaments(uniqueTournaments.map(t => ({ ...t, teams: [] })));
+
+        // Extract unique referees from matches
+        const uniqueReferees = Array.from(
+          new Map(
+            fetchedMatches.map(m => [m.refereeId, { id: m.refereeId, name: m.refereeName }])
+          ).values()
+        );
+        setReferees(uniqueReferees);
       } catch (error) {
-        console.error('Error fetching initial data:', error);
+        console.error('Error fetching matches:', error);
         toast({
           title: 'Error',
-          description: 'No se pudieron cargar los datos. Intenta más tarde.',
+          description: 'No se pudieron cargar los partidos. Intenta más tarde.',
           variant: 'destructive',
         });
       } finally {
@@ -156,37 +164,10 @@ export default function Calendar() {
       }
     };
 
-    fetchInitialData();
+    fetchMatches();
   }, [currentDate, toast]);
 
-  // Función para cargar equipos cuando se selecciona un torneo
-  const handleTournamentChange = async (tournamentId: string) => {
-    setNewMatch({ ...newMatch, tournament: tournamentId, homeTeam: '', awayTeam: '' });
-    
-    if (tournamentId !== 'all') {
-      try {
-        const teams = await CalendarioService.getTeamsByTournament(parseInt(tournamentId));
-        // Actualizar el estado de tournaments con los equipos
-        setTournaments(prev => prev.map(t => 
-          t.id === parseInt(tournamentId) 
-            ? { ...t, teams: teams.map(team => ({ id: team.teamId, name: team.name })) }
-            : t
-        ));
-      } catch (error) {
-        console.error('Error loading teams:', error);
-        toast({
-          title: 'Error',
-          description: 'No se pudieron cargar los equipos del torneo.',
-          variant: 'destructive',
-        });
-      }
-    }
-  };
-
-  // Obtener equipos disponibles para el torneo seleccionado
-  const selectedTournamentTeams = tournaments.find(t => String(t.id) === newMatch.tournament)?.teams || [];
-
-  // Resto del código del componente permanece igual...
+  // Extract teams from matches in selected tournament
   const getTeamsFromMatches = (tournamentId: string) => {
     if (tournamentId === 'all') return [];
 
@@ -316,17 +297,10 @@ export default function Calendar() {
     ) {
       setIsSaving(true);
       try {
-        // Encontrar los IDs de los equipos por sus nombres
-        const homeTeam = selectedTournamentTeams.find(team => team.name === newMatch.homeTeam);
-        const awayTeam = selectedTournamentTeams.find(team => team.name === newMatch.awayTeam);
-
-        if (!homeTeam || !awayTeam) {
-          throw new Error('No se encontraron los equipos seleccionados');
-        }
-
+        // Prepare the payload for the API
         const selectedTournamentId = parseInt(newMatch.tournament);
-        const homeTeamId = homeTeam.id;
-        const awayTeamId = awayTeam.id;
+        const homeTeamId = parseInt(newMatch.homeTeam);
+        const awayTeamId = parseInt(newMatch.awayTeam);
         const refereeId = parseInt(newMatch.referee);
 
         // Combine date and time into ISO format
@@ -422,6 +396,21 @@ export default function Calendar() {
     return date.getMonth() === currentDate.getMonth();
   };
 
+  const selectedTournamentId = newMatch.tournament;
+const availableTeams = selectedTournamentId === 'all'
+  ? []
+  : Array.from(
+      new Map(
+        matches
+          .filter(m => m.tournament === selectedTournamentId)
+          .flatMap(m => [
+            [m.homeTeamId, { id: m.homeTeamId, name: m.homeTeam }],
+            [m.awayTeamId, { id: m.awayTeamId, name: m.awayTeam }],
+          ])
+      ).values()
+    ).map(t => t.name);
+
+
   const calendarDays = getCalendarDays();
   const weekDays = getWeekDays();
 
@@ -437,312 +426,311 @@ export default function Calendar() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-            {/* Header */}
-            <div className="bg-white border-b border-gray-200 shadow-sm">
-              <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between mb-6">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDashboardClick}
-                    className="text-gray-600 hover:text-gray-900 border-gray-200 hover:border-gray-300 rounded-lg"
-                  >
-                    <Home className="w-4 h-4 mr-2" />
-                    Volver al Panel
-                  </Button>
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between mb-6">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDashboardClick}
+              className="text-gray-600 hover:text-gray-900 border-gray-200 hover:border-gray-300 rounded-lg"
+            >
+              <Home className="w-4 h-4 mr-2" />
+              Volver al Panel
+            </Button>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+            <div className="flex-1 text-center sm:text-left">
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center justify-center sm:justify-start">
+                <CalendarIcon className="w-8 h-8 mr-3 text-blue-600" />
+                Calendario de Partidos
+              </h1>
+              <p className="mt-2 text-sm text-gray-600">
+                Visualiza los partidos programados de todos tus torneos.
+              </p>
+            </div>
+
+            <Button
+              onClick={() => setIsScheduleDialogOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 flex items-center whitespace-nowrap"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Programar Partido
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        {/* Filters */}
+        <Card className="bg-white shadow-md border border-gray-200 rounded-2xl mb-8">
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">
+                    Filtrar por torneo
+                  </Label>
+                  <Select value={selectedTournament} onValueChange={setSelectedTournament}>
+                    <SelectTrigger className="w-[250px] rounded-lg border-gray-300 focus:border-blue-600 focus:ring-blue-600">
+                      <SelectValue placeholder="Todos los torneos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los torneos</SelectItem>
+                      {tournaments.map(tournament => (
+                        <SelectItem key={tournament.id} value={String(tournament.id)}>
+                          {tournament.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-      
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-                  <div className="flex-1 text-center sm:text-left">
-                    <h1 className="text-3xl font-bold text-gray-900 flex items-center justify-center sm:justify-start">
-                      <CalendarIcon className="w-8 h-8 mr-3 text-blue-600" />
-                      Calendario de Partidos
-                    </h1>
-                    <p className="mt-2 text-sm text-gray-600">
-                      Visualiza los partidos programados de todos tus torneos.
-                    </p>
-                  </div>
-      
-                  <Button
-                    onClick={() => setIsScheduleDialogOpen(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 flex items-center whitespace-nowrap"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Programar Partido
-                  </Button>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">Vista</Label>
+                  <Select value={view} onValueChange={(value: ViewType) => setView(value)}>
+                    <SelectTrigger className="w-[150px] rounded-lg border-gray-300 focus:border-blue-600 focus:ring-blue-600">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="month">Mes</SelectItem>
+                      <SelectItem value="week">Semana</SelectItem>
+                      <SelectItem value="day">Día</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
+
+              <Button
+                variant="outline"
+                onClick={goToToday}
+                className="rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                <CalendarIcon className="w-4 h-4 mr-2" />
+                Hoy
+              </Button>
             </div>
-      
-            <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-              {/* Filters */}
-              <Card className="bg-white shadow-md border border-gray-200 rounded-2xl mb-8">
-                <CardContent className="p-6">
-                  <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">
-                          Filtrar por torneo
-                        </Label>
-                        <Select value={selectedTournament} onValueChange={setSelectedTournament}>
-                          <SelectTrigger className="w-[250px] rounded-lg border-gray-300 focus:border-blue-600 focus:ring-blue-600">
-                            <SelectValue placeholder="Todos los torneos" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Todos los torneos</SelectItem>
-                            {tournaments.map(tournament => (
-                              <SelectItem key={tournament.id} value={String(tournament.id)}>
-                                {tournament.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-      
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">Vista</Label>
-                        <Select value={view} onValueChange={(value: ViewType) => setView(value)}>
-                          <SelectTrigger className="w-[150px] rounded-lg border-gray-300 focus:border-blue-600 focus:ring-blue-600">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="month">Mes</SelectItem>
-                            <SelectItem value="week">Semana</SelectItem>
-                            <SelectItem value="day">Día</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-      
-                    <Button
-                      variant="outline"
-                      onClick={goToToday}
-                      className="rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50"
+          </CardContent>
+        </Card>
+
+        {/* Calendar */}
+        <Card className="bg-white shadow-md border border-gray-200 rounded-2xl">
+          <CardHeader className="border-b border-gray-100">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center text-2xl font-bold text-gray-900">
+                <CalendarDays className="w-6 h-6 mr-3 text-blue-600" />
+                {view === 'month'
+                  ? `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`
+                  : view === 'week'
+                  ? `Semana del ${weekDays[0].getDate()} de ${monthNames[weekDays[0].getMonth()]} al ${weekDays[6].getDate()} de ${monthNames[weekDays[6].getMonth()]}`
+                  : `${currentDate.getDate()} de ${monthNames[currentDate.getMonth()]} de ${currentDate.getFullYear()}`}
+              </CardTitle>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (view === 'month') navigateMonth('prev');
+                    else if (view === 'week') navigateWeek('prev');
+                    else navigateDay('prev');
+                  }}
+                  className="rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (view === 'month') navigateMonth('next');
+                    else if (view === 'week') navigateWeek('next');
+                    else navigateDay('next');
+                  }}
+                  className="rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-6">
+            {view === 'month' && (
+              <div className="grid grid-cols-7 gap-1">
+                {/* Day headers */}
+                {daysOfWeek.map(day => (
+                  <div
+                    key={day}
+                    className="p-3 text-center text-sm font-semibold text-gray-500 border-b"
+                  >
+                    {day}
+                  </div>
+                ))}
+
+                {/* Calendar days */}
+                {calendarDays.map((date, index) => {
+                  const dayMatches = getMatchesForDate(date);
+                  const isCurrentMonthDay = isCurrentMonth(date);
+                  const isTodayDate = isToday(date);
+                  const displayedMatches = dayMatches.slice(0, 3);
+                  const moreMatches = dayMatches.length - 3;
+
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => handleDayClick(date)}
+                      className={`min-h-[140px] p-3 border border-gray-200 rounded-lg transition-all cursor-pointer ${
+                        !isCurrentMonthDay ? 'bg-gray-50 text-gray-400' : 'bg-white hover:shadow-lg'
+                      } ${isTodayDate ? 'bg-blue-50 border-blue-300' : ''}`}
                     >
-                      <CalendarIcon className="w-4 h-4 mr-2" />
-                      Hoy
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-      
-              {/* Calendar */}
-              <Card className="bg-white shadow-md border border-gray-200 rounded-2xl">
-                <CardHeader className="border-b border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center text-2xl font-bold text-gray-900">
-                      <CalendarDays className="w-6 h-6 mr-3 text-blue-600" />
-                      {view === 'month'
-                        ? `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`
-                        : view === 'week'
-                        ? `Semana del ${weekDays[0].getDate()} de ${monthNames[weekDays[0].getMonth()]} al ${weekDays[6].getDate()} de ${monthNames[weekDays[6].getMonth()]}`
-                        : `${currentDate.getDate()} de ${monthNames[currentDate.getMonth()]} de ${currentDate.getFullYear()}`}
-                    </CardTitle>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (view === 'month') navigateMonth('prev');
-                          else if (view === 'week') navigateWeek('prev');
-                          else navigateDay('prev');
-                        }}
-                        className="rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50"
+                      <div
+                        className={`text-sm font-bold mb-2 ${
+                          isTodayDate
+                            ? 'text-blue-600'
+                            : isCurrentMonthDay
+                            ? 'text-gray-900'
+                            : 'text-gray-400'
+                        }`}
                       >
-                        <ChevronLeft className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (view === 'month') navigateMonth('next');
-                          else if (view === 'week') navigateWeek('next');
-                          else navigateDay('next');
-                        }}
-                        className="rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-      
-                <CardContent className="p-6">
-                  {view === 'month' && (
-                    <div className="grid grid-cols-7 gap-1">
-                      {/* Day headers */}
-                      {daysOfWeek.map(day => (
-                        <div
-                          key={day}
-                          className="p-3 text-center text-sm font-semibold text-gray-500 border-b"
-                        >
-                          {day}
-                        </div>
-                      ))}
-      
-                      {/* Calendar days */}
-                      {calendarDays.map((date, index) => {
-                        const dayMatches = getMatchesForDate(date);
-                        const isCurrentMonthDay = isCurrentMonth(date);
-                        const isTodayDate = isToday(date);
-                        const displayedMatches = dayMatches.slice(0, 3);
-                        const moreMatches = dayMatches.length - 3;
-      
-                        return (
+                        {date.getDate()}
+                      </div>
+
+                      <div className="space-y-1">
+                        {displayedMatches.map(match => (
                           <div
-                            key={index}
-                            onClick={() => handleDayClick(date)}
-                            className={`min-h-[140px] p-3 border border-gray-200 rounded-lg transition-all cursor-pointer ${
-                              !isCurrentMonthDay ? 'bg-gray-50 text-gray-400' : 'bg-white hover:shadow-lg'
-                            } ${isTodayDate ? 'bg-blue-50 border-blue-300' : ''}`}
+                            key={match.id}
+                            onClick={(e) => handleMatchClick(match.id, e)}
+                            className="px-2 py-1 rounded-md cursor-pointer transition-all bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 hover:shadow-sm"
                           >
-                            <div
-                              className={`text-sm font-bold mb-2 ${
-                                isTodayDate
-                                  ? 'text-blue-600'
-                                  : isCurrentMonthDay
-                                  ? 'text-gray-900'
-                                  : 'text-gray-400'
-                              }`}
-                            >
-                              {date.getDate()}
-                            </div>
-      
-                            <div className="space-y-1">
-                              {displayedMatches.map(match => (
-                                <div
-                                  key={match.id}
-                                  onClick={(e) => handleMatchClick(match.id, e)}
-                                  className="px-2 py-1 rounded-md cursor-pointer transition-all bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 hover:shadow-sm"
-                                >
-                                  <div className="text-xs font-semibold text-blue-900 leading-tight truncate">
-                                    <span className="text-blue-700 font-bold">{match.time}</span> {match.homeTeam} vs{' '}
-                                    {match.awayTeam}
-                                  </div>
-                                </div>
-                              ))}
-                              {moreMatches > 0 && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedDayMatches(dayMatches);
-                                    setIsDayModalOpen(true);
-                                  }}
-                                  className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-1"
-                                >
-                                  +{moreMatches} más
-                                </button>
-                              )}
+                            <div className="text-xs font-semibold text-blue-900 leading-tight truncate">
+                              <span className="text-blue-700 font-bold">{match.time}</span> {match.homeTeam} vs{' '}
+                              {match.awayTeam}
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-      
-                  {view === 'week' && (
-                    <div className="space-y-4">
-                      {weekDays.map(date => {
-                        const dayMatches = getMatchesForDate(date);
-                        const isTodayDate = isToday(date);
-      
-                        return (
-                          <div
-                            key={date.toISOString()}
-                            className={`p-4 rounded-lg border ${
-                              isTodayDate ? 'bg-blue-50 border-blue-300' : 'bg-white border-gray-200'
-                            }`}
+                        ))}
+                        {moreMatches > 0 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedDayMatches(dayMatches);
+                              setIsDayModalOpen(true);
+                            }}
+                            className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-1"
                           >
-                            <div
-                              className={`font-bold mb-3 text-lg ${
-                                isTodayDate ? 'text-blue-600' : 'text-gray-900'
-                              }`}
-                            >
-                              {daysOfWeek[date.getDay()]} {date.getDate()} de{' '}
-                              {monthNames[date.getMonth()]}
-                            </div>
-      
-                            {dayMatches.length > 0 ? (
-                              <div className="space-y-2">
-                                {dayMatches.map(match => (
-                                  <div
-                                    key={match.id}
-                                    onClick={(e) => handleMatchClick(match.id, e)}
-                                    className="p-3 rounded-lg cursor-pointer transition-all bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400"
-                                  >
-                                    <div className="text-sm font-semibold text-gray-900">
-                                      [{match.time}] {match.homeTeam} vs {match.awayTeam}
-                                    </div>
-                                    <div className="text-xs text-gray-600 mt-1">
-                                      {match.stadium} • {match.referee}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-gray-500 text-sm">Sin partidos</p>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-      
-                  {view === 'day' && (
-                    <div>
-                      <div className="mb-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
-                        <div className="text-2xl font-bold text-blue-900 mb-1">
-                          {daysOfWeek[currentDate.getDay()]} {currentDate.getDate()} de{' '}
-                          {monthNames[currentDate.getMonth()]} de {currentDate.getFullYear()}
-                        </div>
-                        {isToday(currentDate) && (
-                          <span className="text-sm text-blue-700 font-medium">Hoy</span>
+                            +{moreMatches} más
+                          </button>
                         )}
                       </div>
-      
-                      {getMatchesForDate(currentDate).length > 0 ? (
-                        <div className="space-y-3">
-                          {getMatchesForDate(currentDate).map(match => (
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {view === 'week' && (
+              <div className="space-y-4">
+                {weekDays.map(date => {
+                  const dayMatches = getMatchesForDate(date);
+                  const isTodayDate = isToday(date);
+
+                  return (
+                    <div
+                      key={date.toISOString()}
+                      className={`p-4 rounded-lg border ${
+                        isTodayDate ? 'bg-blue-50 border-blue-300' : 'bg-white border-gray-200'
+                      }`}
+                    >
+                      <div
+                        className={`font-bold mb-3 text-lg ${
+                          isTodayDate ? 'text-blue-600' : 'text-gray-900'
+                        }`}
+                      >
+                        {daysOfWeek[date.getDay()]} {date.getDate()} de{' '}
+                        {monthNames[date.getMonth()]}
+                      </div>
+
+                      {dayMatches.length > 0 ? (
+                        <div className="space-y-2">
+                          {dayMatches.map(match => (
                             <div
                               key={match.id}
                               onClick={(e) => handleMatchClick(match.id, e)}
-                              className="p-4 rounded-lg cursor-pointer transition-all bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 hover:shadow-md"
+                              className="p-3 rounded-lg cursor-pointer transition-all bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400"
                             >
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <div className="text-lg font-bold text-gray-900 mb-2">
-                                    {match.homeTeam} vs {match.awayTeam}
-                                  </div>
-                                  <div className="text-sm text-gray-600 space-y-1">
-                                    <div className="flex items-center">
-                                      <Clock className="w-4 h-4 mr-2 text-blue-600" />
-                                      {match.time}
-                                    </div>
-                                    <div>{match.stadium}</div>
-                                    <div>Árbitro: {match.referee}</div>
-                                  </div>
-                                </div>
-                                <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
-                                  {match.tournament}
-                                </Badge>
+                              <div className="text-sm font-semibold text-gray-900">
+                                [{match.time}] {match.homeTeam} vs {match.awayTeam}
+                              </div>
+                              <div className="text-xs text-gray-600 mt-1">
+                                {match.stadium} • {match.referee}
                               </div>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div className="text-center py-12">
-                          <CalendarIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                          <p className="text-gray-500">Sin partidos programados para este día</p>
-                        </div>
+                        <p className="text-gray-500 text-sm">Sin partidos</p>
                       )}
                     </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {view === 'day' && (
+              <div>
+                <div className="mb-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
+                  <div className="text-2xl font-bold text-blue-900 mb-1">
+                    {daysOfWeek[currentDate.getDay()]} {currentDate.getDate()} de{' '}
+                    {monthNames[currentDate.getMonth()]} de {currentDate.getFullYear()}
+                  </div>
+                  {isToday(currentDate) && (
+                    <span className="text-sm text-blue-700 font-medium">Hoy</span>
                   )}
-                </CardContent>
-              </Card>
-            </div>
-      {/* El JSX permanece exactamente igual */}
-      
-      {/* Schedule Match Dialog - ACTUALIZADO */}
+                </div>
+
+                {getMatchesForDate(currentDate).length > 0 ? (
+                  <div className="space-y-3">
+                    {getMatchesForDate(currentDate).map(match => (
+                      <div
+                        key={match.id}
+                        onClick={(e) => handleMatchClick(match.id, e)}
+                        className="p-4 rounded-lg cursor-pointer transition-all bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 hover:shadow-md"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-lg font-bold text-gray-900 mb-2">
+                              {match.homeTeam} vs {match.awayTeam}
+                            </div>
+                            <div className="text-sm text-gray-600 space-y-1">
+                              <div className="flex items-center">
+                                <Clock className="w-4 h-4 mr-2 text-blue-600" />
+                                {match.time}
+                              </div>
+                              <div>{match.stadium}</div>
+                              <div>Árbitro: {match.referee}</div>
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
+                            {match.tournament}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <CalendarIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-500">Sin partidos programados para este día</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Schedule Match Dialog */}
       <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
         <DialogContent className="sm:max-w-md rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -757,7 +745,9 @@ export default function Calendar() {
               <Label htmlFor="tournament" className="text-sm font-medium text-gray-700">
                 Torneo al cual pertenece el partido
               </Label>
-              <Select value={newMatch.tournament} onValueChange={handleTournamentChange}>
+              <Select value={newMatch.tournament} onValueChange={(value) => {
+                setNewMatch({ ...newMatch, tournament: value, homeTeam: '', awayTeam: '' });
+              }}>
                 <SelectTrigger id="tournament" className="rounded-lg border-gray-300 focus:border-blue-600 focus:ring-blue-600">
                   <SelectValue placeholder="Seleccionar torneo" />
                 </SelectTrigger>
@@ -785,9 +775,9 @@ export default function Calendar() {
                   <SelectValue placeholder="Seleccionar equipo local" />
                 </SelectTrigger>
                 <SelectContent>
-                  {selectedTournamentTeams.map(team => (
-                    <SelectItem key={team.id} value={team.name}>
-                      {team.name}
+                  {availableTeams.map(team => (
+                    <SelectItem key={team} value={team}>
+                      {team}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -808,11 +798,11 @@ export default function Calendar() {
                   <SelectValue placeholder="Seleccionar equipo visitante" />
                 </SelectTrigger>
                 <SelectContent>
-                  {selectedTournamentTeams
-                    .filter(team => team.name !== newMatch.homeTeam)
+                  {availableTeams
+                    .filter(team => team !== newMatch.homeTeam)
                     .map(team => (
-                      <SelectItem key={team.id} value={team.name}>
-                        {team.name}
+                      <SelectItem key={team} value={team}>
+                        {team}
                       </SelectItem>
                     ))}
                 </SelectContent>

@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 import {
   ArrowLeft,
   Home,
@@ -44,183 +45,59 @@ import {
   Plus,
 } from 'lucide-react';
 
+// Importar servicios
+import { 
+  getUpcomingMatches, 
+  createMatch, 
+  updateMatch, 
+  deleteMatch,
+  getTournamentTeams,
+  getReferees,
+  getTournamentDetails
+} from '@/services/upcomingMatchService';
+
+// Interfaces actualizadas según la API
 interface UpcomingMatch {
-  id: string;
+  matchId: number;
   homeTeam: string;
   awayTeam: string;
-  date: string;
-  time: string;
+  matchDateTime: string;
   stadium: string;
-  referee?: string;
-  homeTeamLogo?: string;
-  awayTeamLogo?: string;
+  refereeName?: string;
+  homeTeamId?: number;
+  awayTeamId?: number;
+}
+
+interface Team {
+  id: number;
+  name: string;
+}
+
+interface Referee {
+  id: number;
+  name: string;
+}
+
+interface Tournament {
+  id: number;
+  name: string;
 }
 
 interface EditFormData {
   date: string;
   time: string;
   stadium: string;
+  refereeId: number;
 }
 
 interface ScheduleFormData {
-  tournament: string;
-  homeTeam: string;
-  awayTeam: string;
+  homeTeamId: number;
+  awayTeamId: number;
   date: string;
   time: string;
   stadium: string;
-  referee: string;
+  refereeId: number;
 }
-
-interface Team {
-  id: string;
-  name: string;
-}
-
-interface Referee {
-  id: string;
-  name: string;
-}
-
-const mockTournament = {
-  id: '1',
-  name: 'Liga Nacional de Fútbol 2024'
-};
-
-const mockTeams: Team[] = [
-  { id: '1', name: 'Real Madrid CF' },
-  { id: '2', name: 'FC Barcelona' },
-  { id: '3', name: 'Atlético Madrid' },
-  { id: '4', name: 'Valencia CF' },
-  { id: '5', name: 'Sevilla FC' },
-  { id: '6', name: 'Real Betis' },
-  { id: '7', name: 'Athletic Bilbao' },
-  { id: '8', name: 'Real Sociedad' },
-  { id: '9', name: 'Villarreal CF' },
-  { id: '10', name: 'Celta de Vigo' },
-  { id: '11', name: 'Getafe CF' },
-  { id: '12', name: 'Rayo Vallecano' }
-];
-
-const mockReferees: Referee[] = [
-  { id: '1', name: 'Carlos García López' },
-  { id: '2', name: 'Miguel Ángel Pérez' },
-  { id: '3', name: 'Juan Manuel López' },
-  { id: '4', name: 'Antonio Hernández' },
-  { id: '5', name: 'Francisco González' },
-  { id: '6', name: 'Ricardo Martínez' }
-];
-
-const mockUpcomingMatches: UpcomingMatch[] = [
-  {
-    id: '1',
-    homeTeam: 'Real Madrid CF',
-    awayTeam: 'FC Barcelona',
-    date: '2024-12-20',
-    time: '16:00',
-    stadium: 'Santiago Bernabéu',
-    referee: 'Carlos García López'
-  },
-  {
-    id: '2',
-    homeTeam: 'Atlético Madrid',
-    awayTeam: 'Valencia CF',
-    date: '2024-12-22',
-    time: '18:30',
-    stadium: 'Wanda Metropolitano',
-    referee: 'Miguel Ángel Pérez'
-  },
-  {
-    id: '3',
-    homeTeam: 'Sevilla FC',
-    awayTeam: 'Real Betis',
-    date: '2024-12-24',
-    time: '20:00',
-    stadium: 'Ramón Sánchez-Pizjuán',
-    referee: 'Juan Manuel López'
-  },
-  {
-    id: '4',
-    homeTeam: 'Athletic Bilbao',
-    awayTeam: 'Real Sociedad',
-    date: '2024-12-26',
-    time: '17:15',
-    stadium: 'San Mamés',
-    referee: 'Antonio Hernández'
-  },
-  {
-    id: '5',
-    homeTeam: 'Villarreal CF',
-    awayTeam: 'Celta de Vigo',
-    date: '2024-12-28',
-    time: '19:00',
-    stadium: 'Estadio de la Cerámica',
-    referee: 'Francisco González'
-  },
-  {
-    id: '6',
-    homeTeam: 'Getafe CF',
-    awayTeam: 'Rayo Vallecano',
-    date: '2024-12-30',
-    time: '16:30',
-    stadium: 'Coliseum Alfonso Pérez',
-    referee: 'Ricardo Martínez'
-  },
-  {
-    id: '7',
-    homeTeam: 'Real Sociedad',
-    awayTeam: 'Athletic Bilbao',
-    date: '2025-01-05',
-    time: '15:00',
-    stadium: 'Anoeta',
-    referee: 'Carlos García López'
-  },
-  {
-    id: '8',
-    homeTeam: 'Valencia CF',
-    awayTeam: 'Sevilla FC',
-    date: '2025-01-10',
-    time: '14:00',
-    stadium: 'Mestalla',
-    referee: 'Miguel Ángel Pérez'
-  },
-  {
-    id: '9',
-    homeTeam: 'FC Barcelona',
-    awayTeam: 'Real Madrid CF',
-    date: '2025-01-15',
-    time: '21:00',
-    stadium: 'Camp Nou',
-    referee: 'Juan Manuel López'
-  },
-  {
-    id: '10',
-    homeTeam: 'Real Betis',
-    awayTeam: 'Villarreal CF',
-    date: '2025-01-20',
-    time: '19:30',
-    stadium: 'Benito Villamarín',
-    referee: 'Antonio Hernández'
-  },
-  {
-    id: '11',
-    homeTeam: 'Rayo Vallecano',
-    awayTeam: 'Atlético Madrid',
-    date: '2025-01-25',
-    time: '18:00',
-    stadium: 'Vallecas',
-    referee: 'Francisco González'
-  },
-  {
-    id: '12',
-    homeTeam: 'Celta de Vigo',
-    awayTeam: 'Getafe CF',
-    date: '2025-02-01',
-    time: '17:00',
-    stadium: 'Balaídos',
-    referee: 'Ricardo Martínez'
-  }
-];
 
 const ITEMS_PER_PAGE = 5;
 
@@ -233,44 +110,125 @@ const formatDate = (dateString: string) => {
   });
 };
 
+const formatTime = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleTimeString('es-ES', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
 const getTodayDate = () => {
   const today = new Date();
   return today.toISOString().split('T')[0];
 };
 
+// Función para obtener la hora actual en Colombia (UTC-5)
+const getCurrentTimeInColombia = (): Date => {
+  const now = new Date();
+  // Colombia está en UTC-5, pero Date usa UTC, así que convertimos
+  const colombiaOffset = -5 * 60; // UTC-5 en minutos
+  const localOffset = now.getTimezoneOffset(); // Offset local en minutos
+  const colombiaTime = new Date(now.getTime() + (localOffset - colombiaOffset) * 60000);
+  return colombiaTime;
+};
+
+// Función para verificar si se puede acceder al partido (15 minutos antes)
+const canAccessMatch = (matchDateTime: string): boolean => {
+  const matchDate = new Date(matchDateTime);
+  const currentTime = getCurrentTimeInColombia();
+  
+  // Calcular 15 minutos antes del partido
+  const fifteenMinutesBefore = new Date(matchDate.getTime() - (15 * 60 * 1000));
+  
+  // El partido es accesible desde 15 minutos antes en adelante
+  return currentTime >= fifteenMinutesBefore;
+};
+
+// Función para formartar la hora para mostrar en el mensaje
+const formatDateTimeForMessage = (dateTime: string): string => {
+  const date = new Date(dateTime);
+  return date.toLocaleString('es-CO', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Bogota'
+  });
+};
+
 export default function UpcomingMatches() {
   const navigate = useNavigate();
+  const { tournamentId } = useParams<{ tournamentId: string }>();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDate, setFilterDate] = useState('');
-  const [matches, setMatches] = useState<UpcomingMatch[]>(mockUpcomingMatches);
+  const [matches, setMatches] = useState<UpcomingMatch[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [referees, setReferees] = useState<Referee[]>([]);
+  const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [loading, setLoading] = useState(true);
+  
   const [editingMatch, setEditingMatch] = useState<UpcomingMatch | null>(null);
   const [deleteConfirmMatch, setDeleteConfirmMatch] = useState<UpcomingMatch | null>(null);
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  
   const [editFormData, setEditFormData] = useState<EditFormData>({
     date: '',
     time: '',
-    stadium: ''
+    stadium: '',
+    refereeId: 0
   });
+  
   const [scheduleFormData, setScheduleFormData] = useState<ScheduleFormData>({
-    tournament: mockTournament.name,
-    homeTeam: '',
-    awayTeam: '',
+    homeTeamId: 0,
+    awayTeamId: 0,
     date: '',
     time: '',
     stadium: '',
-    referee: ''
+    refereeId: 0
   });
+
+  // Cargar datos iniciales
+  useEffect(() => {
+    const loadData = async () => {
+      if (!tournamentId) return;
+      
+      try {
+        setLoading(true);
+        const [matchesData, teamsData, refereesData, tournamentData] = await Promise.all([
+          getUpcomingMatches(parseInt(tournamentId), 100),
+          getTournamentTeams(parseInt(tournamentId)),
+          getReferees(),
+          getTournamentDetails(parseInt(tournamentId))
+        ]);
+
+        setMatches(matchesData.matches || []);
+        setTeams(teamsData.teams || []);
+        setReferees(refereesData.referees || []);
+        setTournament(tournamentData);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        toast.error('Error al cargar los datos');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [tournamentId]);
 
   const filteredMatches = useMemo(() => {
     return matches.filter(match => {
       const matchesSearch =
         match.homeTeam.toLowerCase().includes(searchTerm.toLowerCase()) ||
         match.awayTeam.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        formatDate(match.date).includes(searchTerm) ||
+        formatDate(match.matchDateTime).includes(searchTerm) ||
         match.stadium.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesDate = !filterDate || match.date === filterDate;
+      const matchesDate = !filterDate || match.matchDateTime.split('T')[0] === filterDate;
 
       return matchesSearch && matchesDate;
     });
@@ -281,11 +239,20 @@ export default function UpcomingMatches() {
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const paginatedMatches = filteredMatches.slice(startIndex, endIndex);
 
-  const handleMatchClick = (matchId: string, e?: React.MouseEvent) => {
+  const handleMatchClick = (match: UpcomingMatch, e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();
     }
-    navigate(`/detalle-partido/${matchId}`);
+
+    // Validar si se puede acceder al partido (15 minutos antes)
+    if (!canAccessMatch(match.matchDateTime)) {
+      const matchTime = formatDateTimeForMessage(match.matchDateTime);
+      toast.error(`No puedes acceder a este partido aún. Estará disponible 15 minutos antes del inicio: ${matchTime}`);
+      return;
+    }
+
+    // Navegar a la nueva ruta
+    navigate(`/tournament/${tournamentId}/match/${match.matchId}`);
   };
 
   const handleBackClick = () => {
@@ -296,13 +263,20 @@ export default function UpcomingMatches() {
     navigate('/dashboard-organizador');
   };
 
-  const handleEditClick = (match: UpcomingMatch, e: React.MouseEvent) => {
+  const handleEditClick = async (match: UpcomingMatch, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingMatch(match);
+    const matchDate = new Date(match.matchDateTime);
+    
+    // OPCIÓN 2: Buscar el ID del árbitro por su nombre en la lista de árbitros
+    const referee = referees.find(ref => ref.name === match.refereeName);
+    const refereeId = referee ? referee.id : 0;
+    
     setEditFormData({
-      date: match.date,
-      time: match.time,
-      stadium: match.stadium
+      date: matchDate.toISOString().split('T')[0],
+      time: matchDate.toTimeString().slice(0, 5),
+      stadium: match.stadium,
+      refereeId: refereeId // Ahora usa el ID correcto del árbitro
     });
   };
 
@@ -311,19 +285,39 @@ export default function UpcomingMatches() {
     setDeleteConfirmMatch(match);
   };
 
-  const handleSaveEdit = () => {
-    if (editingMatch) {
-      setMatches(matches.map(m =>
-        m.id === editingMatch.id
-          ? {
-              ...m,
-              date: editFormData.date,
-              time: editFormData.time,
-              stadium: editFormData.stadium
-            }
-          : m
-      ));
-      setEditingMatch(null);
+  const handleSaveEdit = async () => {
+    if (editingMatch && tournamentId) {
+      try {
+        const matchDateTime = new Date(`${editFormData.date}T${editFormData.time}`);
+        
+        const updateData = {
+          matchId: editingMatch.matchId,
+          matchDate: matchDateTime.toISOString(),
+          stadium: editFormData.stadium,
+          refereeId: editFormData.refereeId
+        };
+
+        await updateMatch(parseInt(tournamentId), updateData);
+        
+        // Actualizar estado local - también actualizar el nombre del árbitro
+        const updatedRefereeName = referees.find(ref => ref.id === editFormData.refereeId)?.name || editingMatch.refereeName;
+        
+        setMatches(matches.map(m =>
+          m.matchId === editingMatch.matchId
+            ? {
+                ...m,
+                matchDateTime: matchDateTime.toISOString(),
+                stadium: editFormData.stadium,
+                refereeName: updatedRefereeName
+              }
+            : m
+        ));
+        setEditingMatch(null);
+        toast.success('Partido actualizado correctamente');
+      } catch (error) {
+        console.error('Error updating match:', error);
+        toast.error('Error al actualizar el partido');
+      }
     }
   };
 
@@ -331,12 +325,21 @@ export default function UpcomingMatches() {
     setEditingMatch(null);
   };
 
-  const handleConfirmDelete = () => {
-    if (deleteConfirmMatch) {
-      setMatches(matches.filter(m => m.id !== deleteConfirmMatch.id));
-      setDeleteConfirmMatch(null);
-      if (startIndex >= filteredMatches.length - 1 && currentPage > 1) {
-        setCurrentPage(currentPage - 1);
+  const handleConfirmDelete = async () => {
+    if (deleteConfirmMatch && tournamentId) {
+      try {
+        await deleteMatch(parseInt(tournamentId), deleteConfirmMatch.matchId);
+        
+        setMatches(matches.filter(m => m.matchId !== deleteConfirmMatch.matchId));
+        setDeleteConfirmMatch(null);
+        
+        if (startIndex >= filteredMatches.length - 1 && currentPage > 1) {
+          setCurrentPage(currentPage - 1);
+        }
+        toast.success('Partido eliminado correctamente');
+      } catch (error) {
+        console.error('Error deleting match:', error);
+        toast.error('Error al eliminar el partido');
       }
     }
   };
@@ -368,30 +371,54 @@ export default function UpcomingMatches() {
   const handleCloseScheduleDialog = () => {
     setIsScheduleDialogOpen(false);
     setScheduleFormData({
-      tournament: mockTournament.name,
-      homeTeam: '',
-      awayTeam: '',
+      homeTeamId: 0,
+      awayTeamId: 0,
       date: '',
       time: '',
       stadium: '',
-      referee: ''
+      refereeId: 0
     });
   };
 
-  const handleSaveSchedule = () => {
-    if (scheduleFormData.homeTeam && scheduleFormData.awayTeam && scheduleFormData.date && scheduleFormData.time && scheduleFormData.stadium && scheduleFormData.referee) {
-      const newMatch: UpcomingMatch = {
-        id: String(matches.length + 1),
-        homeTeam: mockTeams.find(t => t.id === scheduleFormData.homeTeam)?.name || '',
-        awayTeam: mockTeams.find(t => t.id === scheduleFormData.awayTeam)?.name || '',
-        date: scheduleFormData.date,
-        time: scheduleFormData.time,
-        stadium: scheduleFormData.stadium,
-        referee: mockReferees.find(r => r.id === scheduleFormData.referee)?.name || ''
-      };
-      setMatches([...matches, newMatch]);
-      handleCloseScheduleDialog();
-      setCurrentPage(1);
+  const handleSaveSchedule = async () => {
+    if (tournamentId && scheduleFormData.homeTeamId && scheduleFormData.awayTeamId && 
+        scheduleFormData.date && scheduleFormData.time && scheduleFormData.stadium && 
+        scheduleFormData.refereeId) {
+      try {
+        const matchDateTime = new Date(`${scheduleFormData.date}T${scheduleFormData.time}`);
+        
+        const matchData = {
+          homeTeamId: scheduleFormData.homeTeamId,
+          awayTeamId: scheduleFormData.awayTeamId,
+          tournamentId: parseInt(tournamentId),
+          stadiumName: scheduleFormData.stadium,
+          referee: scheduleFormData.refereeId,
+          matchDate: matchDateTime.toISOString()
+        };
+
+        const newMatch = await createMatch(parseInt(tournamentId), matchData);
+        
+        // Obtener el nombre del árbitro para mostrarlo en la lista
+        const refereeName = referees.find(ref => ref.id === scheduleFormData.refereeId)?.name || '';
+        
+        // Convertir la respuesta de la API al formato del componente
+        const formattedMatch: UpcomingMatch = {
+          matchId: newMatch.matchId,
+          homeTeam: newMatch.homeTeam,
+          awayTeam: newMatch.awayTeam,
+          matchDateTime: newMatch.matchDate,
+          stadium: newMatch.stadiumName,
+          refereeName: refereeName
+        };
+
+        setMatches([...matches, formattedMatch]);
+        handleCloseScheduleDialog();
+        setCurrentPage(1);
+        toast.success('Partido programado correctamente');
+      } catch (error) {
+        console.error('Error creating match:', error);
+        toast.error('Error al programar el partido');
+      }
     }
   };
 
@@ -435,6 +462,17 @@ export default function UpcomingMatches() {
     };
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando partidos...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -469,7 +507,7 @@ export default function UpcomingMatches() {
                 Próximos Partidos
               </h1>
               <p className="mt-2 text-sm text-gray-600">
-                Consulta los próximos encuentros programados en la competencia seleccionada.
+                {tournament ? `Torneo: ${tournament.name}` : 'Consultando torneo...'}
               </p>
             </div>
             <Button
@@ -535,8 +573,9 @@ export default function UpcomingMatches() {
                 <div className="space-y-4">
                   {paginatedMatches.map(match => (
                     <Card
-                      key={match.id}
+                      key={match.matchId}
                       className="cursor-pointer hover:shadow-lg transition-all duration-200 border border-gray-200 hover:border-blue-300 rounded-2xl overflow-hidden"
+                      onClick={() => handleMatchClick(match)}
                     >
                       <CardContent className="p-6">
                         {/* Desktop Layout */}
@@ -567,28 +606,39 @@ export default function UpcomingMatches() {
                           <div className="space-y-2">
                             <div className="flex items-center text-sm text-gray-600">
                               <Calendar className="w-4 h-4 mr-2 text-blue-600" />
-                              <span className="font-medium">{formatDate(match.date)}</span>
+                              <span className="font-medium">{formatDate(match.matchDateTime)}</span>
                             </div>
                             <div className="flex items-center text-sm text-gray-600">
                               <Clock className="w-4 h-4 mr-2 text-blue-600" />
-                              <span>{match.time}</span>
+                              <span>{formatTime(match.matchDateTime)}</span>
                             </div>
                             <div className="flex items-center text-sm text-gray-600">
                               <MapPin className="w-4 h-4 mr-2 text-blue-600" />
                               <span className="truncate">{match.stadium}</span>
                             </div>
+                            {match.refereeName && (
+                              <div className="flex items-center text-sm text-gray-600">
+                                <span className="text-xs text-gray-500">Árbitro: </span>
+                                <span className="ml-1">{match.refereeName}</span>
+                              </div>
+                            )}
                           </div>
 
-                          {/* Actions */}
+                          {/* Match Status Badge */}
                           <div className="flex items-center space-x-2">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={(e) => handleMatchClick(match.id, e)}
+                              onClick={(e) => handleMatchClick(match, e)}
                               className="text-blue-600 border-blue-200 hover:bg-blue-50 rounded-lg whitespace-nowrap"
                             >
                               Ver detalles
                             </Button>
+                            {!canAccessMatch(match.matchDateTime) && (
+                              <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs">
+                                No disponible
+                              </Badge>
+                            )}
                           </div>
 
                           <div className="flex items-center justify-end space-x-2">
@@ -626,26 +676,32 @@ export default function UpcomingMatches() {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div className="grid grid-cols-2 gap-2 text-sm">
                             <div>
                               <p className="text-xs text-gray-500 mb-1">Fecha</p>
-                              <p className="font-medium text-gray-900">{formatDate(match.date)}</p>
+                              <p className="font-medium text-gray-900">{formatDate(match.matchDateTime)}</p>
                             </div>
                             <div>
                               <p className="text-xs text-gray-500 mb-1">Hora</p>
-                              <p className="font-medium text-gray-900">{match.time}</p>
+                              <p className="font-medium text-gray-900">{formatTime(match.matchDateTime)}</p>
                             </div>
-                            <div>
+                            <div className="col-span-2">
                               <p className="text-xs text-gray-500 mb-1">Estadio</p>
                               <p className="font-medium text-gray-900 truncate">{match.stadium}</p>
                             </div>
+                            {match.refereeName && (
+                              <div className="col-span-2">
+                                <p className="text-xs text-gray-500 mb-1">Árbitro</p>
+                                <p className="font-medium text-gray-900">{match.refereeName}</p>
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex gap-2 pt-2 border-t border-gray-100">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={(e) => handleMatchClick(match.id, e)}
+                              onClick={(e) => handleMatchClick(match, e)}
                               className="flex-1 text-blue-600 border-blue-200 hover:bg-blue-50 rounded-lg text-xs"
                             >
                               Ver detalles
@@ -669,6 +725,13 @@ export default function UpcomingMatches() {
                               Eliminar
                             </Button>
                           </div>
+                          {!canAccessMatch(match.matchDateTime) && (
+                            <div className="text-center">
+                              <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs">
+                                Disponible 15 minutos antes del inicio
+                              </Badge>
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -772,7 +835,7 @@ export default function UpcomingMatches() {
               <Input
                 id="tournament"
                 type="text"
-                value={scheduleFormData.tournament}
+                value={tournament?.name || ''}
                 disabled
                 className="mt-1 rounded-lg border-gray-300 bg-gray-50 text-gray-500 cursor-not-allowed"
               />
@@ -783,15 +846,18 @@ export default function UpcomingMatches() {
               <Label htmlFor="homeTeam" className="text-sm font-medium text-gray-700">
                 Equipo Local
               </Label>
-              <Select value={scheduleFormData.homeTeam} onValueChange={(value) => {
-                setScheduleFormData({ ...scheduleFormData, homeTeam: value, awayTeam: '' });
-              }}>
+              <Select 
+                value={scheduleFormData.homeTeamId.toString()} 
+                onValueChange={(value) => {
+                  setScheduleFormData({ ...scheduleFormData, homeTeamId: parseInt(value), awayTeamId: 0 });
+                }}
+              >
                 <SelectTrigger id="homeTeam" className="rounded-lg border-gray-300 focus:border-blue-600 focus:ring-blue-600">
                   <SelectValue placeholder="Seleccionar equipo local" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockTeams.map(team => (
-                    <SelectItem key={team.id} value={team.id}>
+                  {teams.map(team => (
+                    <SelectItem key={team.id} value={team.id.toString()}>
                       {team.name}
                     </SelectItem>
                   ))}
@@ -804,15 +870,17 @@ export default function UpcomingMatches() {
               <Label htmlFor="awayTeam" className="text-sm font-medium text-gray-700">
                 Equipo Visitante
               </Label>
-              <Select value={scheduleFormData.awayTeam} onValueChange={(value) => setScheduleFormData({ ...scheduleFormData, awayTeam: value })}>
-                <SelectTrigger id="awayTeam" className="rounded-lg border-gray-300 focus:border-blue-600 focus:ring-blue-600" disabled={!scheduleFormData.homeTeam}>
+              <Select 
+                value={scheduleFormData.awayTeamId.toString()} 
+                onValueChange={(value) => setScheduleFormData({ ...scheduleFormData, awayTeamId: parseInt(value) })}>
+                <SelectTrigger id="awayTeam" className="rounded-lg border-gray-300 focus:border-blue-600 focus:ring-blue-600" disabled={!scheduleFormData.homeTeamId}>
                   <SelectValue placeholder="Seleccionar equipo visitante" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockTeams
-                    .filter(team => team.id !== scheduleFormData.homeTeam)
+                  {teams
+                    .filter(team => team.id !== scheduleFormData.homeTeamId)
                     .map(team => (
-                      <SelectItem key={team.id} value={team.id}>
+                      <SelectItem key={team.id} value={team.id.toString()}>
                         {team.name}
                       </SelectItem>
                     ))}
@@ -870,13 +938,15 @@ export default function UpcomingMatches() {
               <Label htmlFor="referee" className="text-sm font-medium text-gray-700">
                 Árbitro
               </Label>
-              <Select value={scheduleFormData.referee} onValueChange={(value) => setScheduleFormData({ ...scheduleFormData, referee: value })}>
+              <Select 
+                value={scheduleFormData.refereeId.toString()} 
+                onValueChange={(value) => setScheduleFormData({ ...scheduleFormData, refereeId: parseInt(value) })}>
                 <SelectTrigger id="referee" className="rounded-lg border-gray-300 focus:border-blue-600 focus:ring-blue-600">
                   <SelectValue placeholder="Seleccionar árbitro" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockReferees.map(referee => (
-                    <SelectItem key={referee.id} value={referee.id}>
+                  {referees.map(referee => (
+                    <SelectItem key={referee.id} value={referee.id.toString()}>
                       {referee.name}
                     </SelectItem>
                   ))}
@@ -895,7 +965,7 @@ export default function UpcomingMatches() {
             </Button>
             <Button
               onClick={handleSaveSchedule}
-              disabled={!scheduleFormData.homeTeam || !scheduleFormData.awayTeam || !scheduleFormData.date || !scheduleFormData.time || !scheduleFormData.stadium || !scheduleFormData.referee}
+              disabled={!scheduleFormData.homeTeamId || !scheduleFormData.awayTeamId || !scheduleFormData.date || !scheduleFormData.time || !scheduleFormData.stadium || !scheduleFormData.refereeId}
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Guardar partido
@@ -983,6 +1053,27 @@ export default function UpcomingMatches() {
                 className="mt-1 rounded-lg border-gray-300 focus:border-blue-600 focus:ring-blue-600"
               />
             </div>
+
+            {/* Editable Referee */}
+            <div>
+              <Label htmlFor="editReferee" className="text-sm font-medium text-gray-700">
+                Árbitro
+              </Label>
+              <Select 
+                value={editFormData.refereeId.toString()} 
+                onValueChange={(value) => setEditFormData({ ...editFormData, refereeId: parseInt(value) })}>
+                <SelectTrigger id="editReferee" className="rounded-lg border-gray-300 focus:border-blue-600 focus:ring-blue-600">
+                  <SelectValue placeholder="Seleccionar árbitro" />
+                </SelectTrigger>
+                <SelectContent>
+                  {referees.map(referee => (
+                    <SelectItem key={referee.id} value={referee.id.toString()}>
+                      {referee.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <DialogFooter className="mt-6 flex gap-2">
@@ -1021,7 +1112,7 @@ export default function UpcomingMatches() {
                   <span className="font-semibold">{deleteConfirmMatch.awayTeam}</span>
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {formatDate(deleteConfirmMatch.date)} a las {deleteConfirmMatch.time}
+                  {formatDate(deleteConfirmMatch.matchDateTime)} a las {formatTime(deleteConfirmMatch.matchDateTime)}
                 </p>
               </div>
             )}

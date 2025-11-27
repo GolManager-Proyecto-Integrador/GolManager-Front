@@ -51,8 +51,8 @@ const App = () => (
 
 
           <Route
-            //path="/gestion-competencias/tournament/:idTournament/teams-manage"
             path="/tournament/:idTournament/teams-manage"
+            //path="/tournament/:idTournament/teams"
             element={
               <ProtectedRoute role="USER">
                 <TeamManagement />
@@ -89,7 +89,7 @@ const App = () => (
           />
 
           <Route
-            path="/proximos-partidos/:id"
+            path="/proximos-partidos/:idTournament"
             element={
               <ProtectedRoute role="USER">
                 <UpcomingMatches />
