@@ -10,7 +10,7 @@ const API_TOURNAMENT = "http://localhost:8085/api/tournaments";
 //   INTERFACES PARA TIPADO
 // ===========================
 export interface GeneratedMatch {
-  idMatch: number;
+  matchId: number;
   homeTeam: string;
   awayTeam: string;
   stadium: string;
@@ -57,12 +57,11 @@ export const generarLlavesEnfrentamientos = async (tournamentId: number): Promis
 
     if (Array.isArray(response.data)) {
       // Validar que cada elemento tenga la estructura esperada
-      const partidosValidos = response.data.filter((partido: any) => 
-        partido.idMatch && 
-        partido.homeTeam && 
-        partido.awayTeam && 
-        partido.matchDateTime
-      );
+        const partidosValidos = response.data.filter((p: any) =>
+          p.matchId !== undefined &&
+          typeof p.homeTeam === "string" &&
+          typeof p.awayTeam === "string"
+        );
 
       if (partidosValidos.length !== response.data.length) {
         console.warn(`⚠️ Se filtraron ${response.data.length - partidosValidos.length} partidos inválidos`);

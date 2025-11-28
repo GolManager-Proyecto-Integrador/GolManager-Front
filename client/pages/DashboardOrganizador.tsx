@@ -57,10 +57,12 @@ export default function Dashboard() {
         
         // Datos de ejemplo en caso de error
         setStats({
-          totalTournaments: 5,
-          activeTournaments: 2,
-          upcomingMatches: 8,
-          registeredTeams: 24
+          numTournaments: 5,
+          numTournamentsCreateThisMonth: 2,
+          numTournamentsInProgress: 2,
+          numMatchesThisWeek: 8,
+          numTeamsRegistered: 24,
+          userName: "Organizador"
         });
         setOrganizer({
           id: '1',
