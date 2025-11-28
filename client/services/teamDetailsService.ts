@@ -5,8 +5,8 @@ import { getToken } from "./authService";
 // =========================
 //   URL BASES SEGÚN BACKEND
 // =========================
-const API_TOURNAMENTS = "/api/tournaments";
-const API_PLAYERS = "/api/players";
+const API_TOURNAMENTS = "http://localhost:8085/api/tournaments";
+const API_PLAYERS = "http://localhost:8085/api/players";
 
 // ============================================================
 // 🔹 INTERFACES DEL FRONTEND (LO QUE LA VISTA NECESITA)

@@ -7,7 +7,7 @@
 import axios from "axios";
 import { getToken } from "./authService";
 
-const API_URL = "/api/tournaments";
+const API_URL = "http://localhost:8085/api/tournaments";
 
 // Interfaces
 export interface Player {
@@ -15,7 +15,7 @@ export interface Player {
   name: string;
   position: string;         // código del enum (ej: "PO")
   dorsalNumber: number;
-  age?: number;             // según el swagger también lo pide
+  age?: number;             
 }
 
 export interface Team {

@@ -1,7 +1,7 @@
 import axios from "axios";
 import { getToken } from "./authService";
 
-const API_BASE = "/api/tournaments";
+const API_BASE = "http://localhost:8085/api/tournaments";
 
 // =======================
 // 🔹 CONFIGURACIÓN AXIOS

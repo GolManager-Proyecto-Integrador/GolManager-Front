@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { getToken } from "./authService";
 
-const API_URL = "/api/tournaments";
-const API_REFEREES_URL = "/api/referees";
+const API_URL = "http://localhost:8085/api/tournaments";
+const API_REFEREES_URL = "http://localhost:8085/api/referees";
 
 const authHeaders = () => ({
   headers: {

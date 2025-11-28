@@ -6,7 +6,7 @@ import { getToken } from "./authService";
 // ===========================
 // CONFIGURACIÓN BASE
 // ===========================
-const API_BASE = "/api/tournaments";
+const API_BASE = "http://localhost:8085/api/tournaments";
 
 // ===========================
 // HEADERS AUTORIZACIÓN

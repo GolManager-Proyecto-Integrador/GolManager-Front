@@ -4,7 +4,7 @@ import { getToken } from "./authService";
 // ===========================
 //   URL BASE SEGÚN BACKEND
 // ===========================
-const API_TOURNAMENT = "/api/tournaments";
+const API_TOURNAMENT = "http://localhost:8085/api/tournaments";
 
 // ===========================
 //   INTERFACES PARA TIPADO

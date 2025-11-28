@@ -5,7 +5,7 @@
 import axios from "axios";
 import { getToken } from "./authService";
 
-const API_URL = "/api/admin/organizers";
+const API_URL = "http://localhost:8085/api/admin/organizers";
 
 // 🔹 Headers de autenticación reutilizables
 const getAuthHeaders = () => ({

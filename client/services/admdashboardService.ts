@@ -4,7 +4,7 @@ import axios from "axios";
 import { getToken } from "./authService";
 
 // Endpoint correcto del backend
-const API_URL = "/api/admin/dashboard";
+const API_URL = "http://localhost:8085/api/admin/dashboard";
 
 // Headers de autenticación reutilizables
 const getAuthHeaders = () => ({

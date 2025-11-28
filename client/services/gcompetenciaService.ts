@@ -5,8 +5,8 @@ import axios from "axios";
 import { getToken } from "./authService";
 
 // Ajustar al puerto y ruta de backend
-const API_URL = "/api/tournaments";
-const REFEREES_URL = "/api/referees"; 
+const API_URL = "http://localhost:8085/api/tournaments";
+const REFEREES_URL = "http://localhost:8085/api/referees"; 
 
 // Interfaces
 export interface Tournament {

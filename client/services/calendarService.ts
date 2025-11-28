@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getToken } from "./authService";
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = 'http://localhost:8085/api';
 
 
 export interface Match {

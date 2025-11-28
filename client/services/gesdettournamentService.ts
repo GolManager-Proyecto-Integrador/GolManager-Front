@@ -4,7 +4,7 @@
 import axios from "axios";
 import { getToken } from "./authService";
 
-const API_URL = "/api/tournaments";
+const API_URL = "http://localhost:8085/api/tournaments";
 
 
 export interface TournamentData {
