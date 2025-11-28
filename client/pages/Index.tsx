@@ -5,11 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Calendar, Users, ChevronRight, LogIn, Eye } from "lucide-react";
 
-useEffect(() => {
-  document.title = `GolManager`;
-}, );
-
 export default function Index() {
+
+  useEffect(() => {
+    document.title = `GolManager`;
+  }, []); // ✅ Agregar array de dependencias vacío
+
   // Mock data for featured tournaments
   const featuredTournaments = [
     {

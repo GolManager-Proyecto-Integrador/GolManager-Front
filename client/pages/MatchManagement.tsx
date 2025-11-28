@@ -60,9 +60,6 @@ interface Position {
   position: number;
 }
 
-useEffect(() => {
-  document.title = `Gestión de Partido`;
-}, );
 
 const eventTypeOptions = [
   { value: 'goal', label: 'Gol ⚽', icon: '⚽' },
@@ -106,6 +103,12 @@ const formatDate = (dateString: string) => {
 };
 
 export default function MatchManagement() {
+
+  useEffect(() => {
+    document.title = `Gestión de Partido`;
+  }, );
+
+
   const { tournamentId, matchId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();

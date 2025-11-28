@@ -32,9 +32,7 @@ import {
   Player,
 } from "@/services/teamDetailsService";
 
-useEffect(() => {
-  document.title = `Detalles del Equipo`;
-}, );
+
 
 const roles = ["Titular", "Suplente"];
 const statuses = ["Activo", "Suspendido", "Lesionado"];
@@ -53,6 +51,11 @@ const getStatusColor = (status?: Player["status"]) => {
 };
 
 export default function TeamDetails() {
+
+  useEffect(() => {
+    document.title = `Detalles del Equipo`;
+  }, );
+
   // Ahora obtenemos ambos ids desde la URL
   const { idTournament, teamId } = useParams<{
     idTournament: string;

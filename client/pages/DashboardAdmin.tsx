@@ -16,6 +16,11 @@ import {
 import { dashboardService } from "@/services/admdashboardService";
 
 export default function AdminDashboard() {
+
+  useEffect(() => {
+    document.title = `Panel de Administrador`;
+  }, []);
+
   const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState({
     userName: "Cargando...",
@@ -24,38 +29,49 @@ export default function AdminDashboard() {
     numTeams: 0,
   });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          setError("⚠️ No se encontró el token de autenticación");
-          navigate("/login");
-          return;
-        }
+        setLoading(true);
+        setError("");
 
-        const data = await dashboardService.getDashboardData(token);
+        // ✅ ELIMINAR: No necesitas pasar el token manualmente
+        // const token = localStorage.getItem("token");
+        // if (!token) {
+        //   setError("⚠️ No se encontró el token de autenticación");
+        //   navigate("/login");
+        //   return;
+        // }
+
+        // ✅ CORRECTO: Llamar sin parámetros
+        const data = await dashboardService.getDashboardData();
         setDashboardData(data);
+        
       } catch (err: any) {
+        console.error("Error cargando dashboard:", err);
         setError(
-          `⚠️ ${err.messages || err.error || "Error al cargar el dashboard"}`
+          `⚠️ ${err.message || err.messages || err.error || "Error al cargar el dashboard"}`
         );
+        
+        // Redirigir a login si hay error de autenticación
+        if (err.message?.includes("No autorizado") || err.message?.includes("token")) {
+          navigate("/login");
+        }
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchDashboard();
   }, [navigate]);
 
-  useEffect(() => {
-    document.title = `Panel de Administrador`;
-  }, );
-
   const summaryMetrics = [
     {
       id: "organizers",
       label: "Organizadores registrados",
-      value: dashboardData.numOrganizers,
+      value: loading ? "..." : dashboardData.numOrganizers,
       description: "Registrados actualmente",
       icon: Users,
       accent: "bg-blue-100 text-blue-600",
@@ -63,7 +79,7 @@ export default function AdminDashboard() {
     {
       id: "tournaments",
       label: "Torneos creados",
-      value: dashboardData.numTournaments,
+      value: loading ? "..." : dashboardData.numTournaments,
       description: "Creados en el sistema",
       icon: Trophy,
       accent: "bg-purple-100 text-purple-600",
@@ -71,7 +87,7 @@ export default function AdminDashboard() {
     {
       id: "teams",
       label: "Equipos registrados",
-      value: dashboardData.numTeams,
+      value: loading ? "..." : dashboardData.numTeams,
       description: "Equipos",
       icon: Shield,
       accent: "bg-emerald-100 text-emerald-600",
@@ -99,6 +115,17 @@ export default function AdminDashboard() {
       icon: FileText,
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">

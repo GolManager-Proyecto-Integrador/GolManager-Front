@@ -67,6 +67,11 @@ const monthNames = [
 type ViewType = 'month' | 'week' | 'day';
 
 export default function Calendar() {
+
+  useEffect(() => {
+    document.title = `Calendario de Partidos`;
+  }, );
+
   const navigate = useNavigate();
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -159,9 +164,7 @@ export default function Calendar() {
     fetchInitialData();
   }, [currentDate, toast]);
 
-  useEffect(() => {
-    document.title = `Calendario de Partidos`;
-  }, );
+
 
   // Función para cargar equipos cuando se selecciona un torneo
   const handleTournamentChange = async (tournamentId: string) => {

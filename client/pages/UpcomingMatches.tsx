@@ -99,9 +99,7 @@ interface ScheduleFormData {
   refereeId: number;
 }
 
-useEffect(() => {
-  document.title = `Próximos Partidos`;
-}, );
+
 
 const ITEMS_PER_PAGE = 5;
 
@@ -163,6 +161,11 @@ const formatDateTimeForMessage = (dateTime: string): string => {
 };
 
 export default function UpcomingMatches() {
+
+  useEffect(() => {
+  document.title = `Próximos Partidos`;
+  }, );
+
   const navigate = useNavigate();
   const { idTournament } = useParams<{ idTournament: string }>(); // CAMBIADO: tournamentId → idTournament
   

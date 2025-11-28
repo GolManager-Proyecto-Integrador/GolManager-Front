@@ -10,11 +10,14 @@ import { jwtDecode } from "jwt-decode";
 
 import { login } from "../services/authService";
 
-useEffect(() => {
-  document.title = `Iniciar Sesión`;
-}, );
+
 
 export default function Login() {
+
+  useEffect(() => {
+    document.title = `Iniciar Sesión`;
+  }, );
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);

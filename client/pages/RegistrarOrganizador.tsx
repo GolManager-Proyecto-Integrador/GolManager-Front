@@ -17,11 +17,12 @@ import {
 } from "lucide-react";
 import { organizerService } from "@/services/organizerService";
 
-useEffect(() => {
-  document.title = `Registrar Organizador`;
-}, );
-
 export default function RegistrarOrganizador() {
+
+  useEffect(() => {
+    document.title = `Registrar Organizador`;
+  }, []); // ✅ Agregar array de dependencias
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,11 +31,13 @@ export default function RegistrarOrganizador() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [success, setSuccess] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
+    setSuccess("");
 
     // Validaciones
     if (password !== confirmPassword) {
@@ -50,11 +53,12 @@ export default function RegistrarOrganizador() {
     }
 
     try {
-      const token = localStorage.getItem("token"); // JWT del admin autenticado
-      const response = await organizerService.register(
-        { name: fullName, email, password },
-        token || undefined
-      );
+      // ✅ CORRECTO: Llamar con solo 1 argumento (los datos del organizador)
+      const response = await organizerService.register({
+        name: fullName, 
+        email, 
+        password
+      });
 
       console.log("✅ Registro exitoso:", response);
 
@@ -64,6 +68,8 @@ export default function RegistrarOrganizador() {
       setPassword("");
       setConfirmPassword("");
       setError("");
+      setSuccess("✅ Organizador registrado exitosamente");
+      
     } catch (err: any) {
       console.error("❌ Error:", err);
       const message =
@@ -213,6 +219,16 @@ export default function RegistrarOrganizador() {
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
                     <p className="text-red-700 text-sm font-medium">{error}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Success Message */}
+              {success && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-green-600 flex-shrink-0" />
+                    <p className="text-green-700 text-sm font-medium">{success}</p>
                   </div>
                 </div>
               )}

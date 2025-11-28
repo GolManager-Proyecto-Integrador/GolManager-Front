@@ -9,11 +9,14 @@ import { Users, Trophy, Search, Plus, Edit, Trash2 } from "lucide-react";
 
 import teamService, { Team } from "@/services/teamService";
 
-useEffect(() => {
-  document.title = `Equipos Inscritos`;
-}, );
+
 
 export default function Teams() {
+
+  useEffect(() => {
+    document.title = `Equipos Inscritos`;
+  }, );
+
   const [searchTerm, setSearchTerm] = useState("");
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);

@@ -13,11 +13,14 @@ import { Link } from "react-router-dom";
 
 import tournamentService, { TournamentData } from "@/services/gesdettournamentService";
 
-useEffect(() => {
+
+
+export default function ReglasTorneo() {
+
+  useEffect(() => {
   document.title = `Reglas del Torneo`;
 }, );
 
-export default function ReglasTorneo() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 

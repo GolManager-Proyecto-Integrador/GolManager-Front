@@ -51,31 +51,36 @@ export default function OrganizerManagement() {
   const [loading, setLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [adminName, setAdminName] = useState("Cargando..."); 
+  const [error, setError] = useState("");
 
   useEffect(() => {
     document.title = `Gestión de Organizadores`;
-  }, );
+  }, []); // ✅ Agregar array de dependencias
 
   // Cargar organizadores
   useEffect(() => {
     const fetchData = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        alert("⚠️ No se encontró un token válido. Inicia sesión nuevamente.");
-        navigate("/login");
-        return;
-      }
       try {
-        // Trae organizadores
-        const data = await organizerService.getAll(token);
-        setOrganizers(data);
+        setLoading(true);
+        setError("");
 
-        // Trae nombre del admin
-        const dashboardData = await dashboardService.getDashboardData(token);
+        // ✅ CORRECTO: Llamar sin parámetros token
+        const [organizersData, dashboardData] = await Promise.all([
+          organizerService.getAll(),
+          dashboardService.getDashboardData()
+        ]);
+
+        setOrganizers(organizersData);
         setAdminName(dashboardData.userName);
-      } catch (error) {
-        alert("Error al cargar los datos. Intenta nuevamente.");
-        console.error(error);
+
+      } catch (error: any) {
+        console.error("Error cargando datos:", error);
+        setError("Error al cargar los datos. Intenta nuevamente.");
+        
+        // Redirigir si hay error de autenticación
+        if (error.message?.includes("No autorizado") || error.message?.includes("token")) {
+          navigate("/login");
+        }
       } finally {
         setLoading(false);
       }
@@ -103,8 +108,6 @@ export default function OrganizerManagement() {
   const handleSaveChanges = async () => {
     if (!editingOrganizer) return;
 
-    const token = localStorage.getItem("token");
-
     const payload = {
       actualEmail: editingOrganizer.email,
       newEmail: editingOrganizer.newEmail ?? editingOrganizer.email,
@@ -113,19 +116,20 @@ export default function OrganizerManagement() {
     };
 
     try {
-      await organizerService.update(payload, token);
+      // ✅ CORRECTO: Llamar sin parámetro token
+      await organizerService.update(payload);
 
       // Refrescar lista
-      const updatedOrganizers = await organizerService.getAll(token);
+      const updatedOrganizers = await organizerService.getAll();
       setOrganizers(updatedOrganizers);
 
       alert("✅ Cambios guardados correctamente.");
       setIsEditDialogOpen(false);
       setEditingOrganizer(null);
       setShowPassword(false);
-    } catch (error) {
-      alert("❌ Error al actualizar el organizador.");
+    } catch (error: any) {
       console.error("Error al actualizar organizador:", error);
+      alert(`❌ Error al actualizar el organizador: ${error.message}`);
     }
   };
 
@@ -138,16 +142,17 @@ export default function OrganizerManagement() {
   const handleConfirmDelete = async () => {
     if (!organizerToDelete) return;
     try {
-      const token = localStorage.getItem("token");
       const org = organizers.find((o) => o.id === organizerToDelete);
       if (!org) return;
 
-      await organizerService.remove(org.email, token);
+      // ✅ CORRECTO: Llamar solo con email (sin token)
+      await organizerService.remove(org.email);
+      
       setOrganizers((prev) => prev.filter((o) => o.id !== organizerToDelete));
       alert("🗑️ Organizador eliminado correctamente.");
-    } catch (error) {
-      alert("❌ Error al eliminar el organizador.");
-      console.error(error);
+    } catch (error: any) {
+      console.error("Error eliminando organizador:", error);
+      alert(`❌ Error al eliminar el organizador: ${error.message}`);
     } finally {
       setIsDeleteDialogOpen(false);
       setOrganizerToDelete(null);
@@ -157,14 +162,17 @@ export default function OrganizerManagement() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-500">
-        Cargando organizadores...
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Cargando organizadores...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header (restaurado exactamente como pediste) */}
+      {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
@@ -188,7 +196,6 @@ export default function OrganizerManagement() {
               </div>
             </div>
 
-            {/* 👇 Aquí reemplazamos el nombre fijo por el dinámico */}
             <div className="flex items-center gap-3">
               <div className="text-right">
                 <p className="text-xs uppercase tracking-wide text-gray-400">
@@ -215,6 +222,16 @@ export default function OrganizerManagement() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-red-600 rounded-full"></div>
+              <p className="text-red-700 text-sm font-medium">{error}</p>
+            </div>
+          </div>
+        )}
+
         {/* Search and Action Bar */}
         <Card className="mb-8 bg-white rounded-2xl shadow-md border-0">
           <CardContent className="pt-6 pb-6">
