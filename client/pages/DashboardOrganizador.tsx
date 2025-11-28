@@ -1,3 +1,4 @@
+// DashboardOrganizador.tsx - MEJORADO
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +15,9 @@ import {
   TrendingUp,
   Menu,
   X,
-  Flag
+  Flag,
+  AlertCircle,
+  RefreshCw
 } from "lucide-react";
 import { 
   fetchDashboardStats, 
@@ -27,39 +30,81 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [organizer, setOrganizer] = useState<OrganizerInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
     async function loadData() {
       try {
-        const statsData = await fetchDashboardStats();
-        const organizerData = await fetchOrganizerInfo();
+        setLoading(true);
+        setError(null);
+        
+        console.log('🔄 Cargando datos del dashboard...');
+        const [statsData, organizerData] = await Promise.all([
+          fetchDashboardStats(),
+          fetchOrganizerInfo()
+        ]);
+        
         setStats(statsData);
         setOrganizer(organizerData);
-      } catch (err) {
+        console.log('✅ Datos del dashboard cargados exitosamente');
+        
+      } catch (err: any) {
         console.error("Error cargando datos del dashboard:", err);
+        setError(err.message || "Error al cargar el dashboard");
+        
+        // Datos de ejemplo en caso de error
+        setStats({
+          totalTournaments: 5,
+          activeTournaments: 2,
+          upcomingMatches: 8,
+          registeredTeams: 24
+        });
+        setOrganizer({
+          id: '1',
+          name: 'Organizador Principal',
+          email: 'organizador@torneos.com'
+        });
+      } finally {
+        setLoading(false);
       }
     }
     loadData();
   }, []);
 
-    useEffect(() => {
+  useEffect(() => {
     document.title = `Panel de Organizador`;
-  }, );
+  }, []);
 
   const navigationItems = [
     { icon: LayoutGrid, label: "Dashboard", href: "/dashboard-organizador" },
     { icon: Trophy, label: "Torneos", href: "/gestion-competencias" },
-    //{ icon: Users, label: "Equipos y jugadores", href: "/teams-manage" },
     { icon: Calendar, label: "Calendario", href: "/calendario" },
-    //{ icon: BarChart3, label: "Resultados y posiciones", href: "/resultados" },
   ];
 
   const handleLogout = async () => {
     await logout();
     navigate("/login");
   };
+
+  const handleRetry = () => {
+    setError(null);
+    setLoading(true);
+    window.location.reload();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F7F8FA" }}>
@@ -162,14 +207,14 @@ export default function Dashboard() {
                 <div className="text-right">
                   <p className="text-sm text-gray-500">Organizador</p>
                   <p className="font-semibold text-gray-900">
-                    {organizer?.name ?? "Cargando..."}
+                    {organizer?.name ?? "Organizador"}
                   </p>
                 </div>
                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center">
                   <span className="text-white font-semibold">
                     {organizer
                       ? organizer.name.split(" ").map((n) => n[0]).join("").substring(0, 2)
-                      : "OC"}
+                      : "O"}
                   </span>
                 </div>
               </div>
@@ -178,6 +223,30 @@ export default function Dashboard() {
         </header>
 
         <main className="p-6 space-y-8">
+          {/* Mensaje de error */}
+          {error && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600" />
+                <div className="flex-1">
+                  <p className="text-yellow-800 font-medium">Aviso del sistema</p>
+                  <p className="text-yellow-700 text-sm">
+                    {error} - Mostrando datos de ejemplo para desarrollo.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRetry}
+                  className="text-yellow-700 border-yellow-300"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Reintentar
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Botón crear competencia */}
           <div className="flex justify-start">
             <Link to="/gestion-competencias">

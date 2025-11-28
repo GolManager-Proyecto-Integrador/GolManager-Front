@@ -39,6 +39,12 @@ const categories = [
 const ITEMS_PER_PAGE = 6;
 
 export default function TeamManagement() {
+
+  // En tu componente, puedes llamar esto para diagnosticar
+useEffect(() => {
+  TeamService.diagnoseToken();
+}, []);
+
   const navigate = useNavigate();
   const { idTournament } = useParams<{ idTournament: string }>();
   const { toast } = useToast();
@@ -80,75 +86,106 @@ export default function TeamManagement() {
 
   useEffect(() => {
     document.title = `Gestión de Equipos`;
-  }, );
+  }, []);
 
-  // Fetch teams on mount
+  // Fetch teams on mount - MEJORADO
   useEffect(() => {
     const fetchTeams = async () => {
       try {
-        if (!idTournament) return;
-        const tournamentIdNum = parseInt(idTournament);
+        if (!idTournament) {
+          console.error('❌ idTournament no definido');
+          return;
+        }
         
+        const tournamentIdNum = parseInt(idTournament);
+        if (isNaN(tournamentIdNum)) {
+          console.error('❌ idTournament no es un número válido:', idTournament);
+          return;
+        }
+
         console.log('🔄 Fetching teams para torneo:', tournamentIdNum);
         const fetchedTeams = await TeamService.getTeams(tournamentIdNum);
 
         console.log('✅ Teams recibidos:', fetchedTeams);
-        // Protección extra: asegurar que sea un array
-        fetchedTeams.forEach((team, index) => {
-        if (!team.id) {
-          console.error(`❌ Equipo en índice ${index} no tiene ID:`, team);
+        
+        // Validación exhaustiva
+        if (!Array.isArray(fetchedTeams)) {
+          console.error('❌ fetchedTeams no es un array:', fetchedTeams);
+          setTeams([]);
+          return;
         }
-      });
-      
-      setTeams(Array.isArray(fetchedTeams) ? fetchedTeams : []);
 
-      } catch (error) {
-        console.error('Error fetching teams:', error);
-        // Si es un 401, el interceptor o el servicio deberían manejarlo, 
-        // pero aquí evitamos que la app explote con datos basura.
-        setTeams([]); 
-        toast({
-          title: 'Error',
-          description: 'No se pudieron cargar los equipos. Verifique su sesión.',
-          variant: 'destructive',
+        // Verificar que cada equipo tenga ID
+        const validTeams = fetchedTeams.filter(team => {
+          if (!team.id) {
+            console.warn('⚠️ Equipo sin ID filtrado:', team);
+            return false;
+          }
+          return true;
         });
+
+        setTeams(validTeams);
+
+      } catch (error: any) {
+        console.error('❌ Error fetching teams:', error);
+        
+        if (error.message?.includes('No autorizado')) {
+          toast({
+            title: 'Sesión expirada',
+            description: 'Por favor inicie sesión nuevamente',
+            variant: 'destructive',
+          });
+          navigate('/login');
+        } else {
+          toast({
+            title: 'Error',
+            description: 'No se pudieron cargar los equipos',
+            variant: 'destructive',
+          });
+        }
+        
+        setTeams([]);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchTeams();
-  }, [idTournament, toast]);
+  }, [idTournament, toast, navigate]);
 
   // Validación reactiva
   useEffect(() => {
     validateForm();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [newTeam]); 
+  }, [newTeam]);
 
-  // Filter teams based on search query con protección contra undefined
+  // Filter teams based on search query
   const filteredTeams = teams.filter(team => {
-    // Usamos encadenamiento opcional y valores por defecto
     const name = team.name ? team.name.toLowerCase() : '';
     const coach = team.coach ? team.coach.toLowerCase() : '';
     const query = searchQuery.toLowerCase();
     
     return name.includes(query) || coach.includes(query);
   });
-  // -------------------------------------
 
   // Pagination
   const totalPages = Math.ceil(filteredTeams.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedTeams = filteredTeams.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
+  // 🔹 HANDLERS MEJORADOS
   const handleTeamClick = (teamId: number) => {
-  if (teamId && idTournament) {
-    console.log(`🖱️ Navegando al equipo: ${teamId} del torneo: ${idTournament}`);
-    navigate(`/tournament/${idTournament}/team/${teamId}`);
-  } else {
-    console.warn('⚠️ No se puede navegar: teamId o idTournament faltante', { teamId, idTournament });
-  }
+    if (teamId && idTournament) {
+      console.log(`🖱️ Navegando al equipo: ${teamId} del torneo: ${idTournament}`);
+      navigate(`/tournament/${idTournament}/team/${teamId}`);
+    } else {
+      console.warn('⚠️ No se puede navegar: teamId o idTournament faltante', { teamId, idTournament });
+      toast({
+        title: 'Error',
+        description: 'No se puede acceder al equipo en este momento',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleInputChange = (field: keyof NewTeamData, value: string) => {
@@ -159,6 +196,7 @@ export default function TeamManagement() {
     if (newPlayer.name && newPlayer.position && newPlayer.dorsalNumber) {
       const dorsalNum = parseInt(newPlayer.dorsalNumber);
 
+      // Validar número de dorsal único
       const dorsalExists = newTeam.players.some(p => p.dorsalNumber === dorsalNum);
       if (dorsalExists) {
         setErrors(['El número de dorsal ya está en uso']);
@@ -178,6 +216,7 @@ export default function TeamManagement() {
       }));
 
       setNewPlayer({ name: '', position: '', dorsalNumber: '' });
+      setErrors([]); // Limpiar errores al agregar jugador exitosamente
     }
   };
 
@@ -188,14 +227,15 @@ export default function TeamManagement() {
     }));
   };
 
+  // 🔹 VALIDACIÓN CORREGIDA - Cancha secundaria NO obligatoria
   const validateForm = () => {
     const newErrors: string[] = [];
 
-    if (!newTeam.name) newErrors.push('El nombre del equipo es obligatorio');
-    if (!newTeam.coach) newErrors.push('El director técnico es obligatorio');
+    if (!newTeam.name.trim()) newErrors.push('El nombre del equipo es obligatorio');
+    if (!newTeam.coach.trim()) newErrors.push('El director técnico es obligatorio');
     if (!newTeam.category) newErrors.push('La categoría es obligatoria');
-    if (!newTeam.mainField) newErrors.push('La cancha principal es obligatoria');
-    if (!newTeam.secondaryField) newErrors.push('La cancha secundaria es obligatoria');
+    if (!newTeam.mainField.trim()) newErrors.push('La cancha principal es obligatoria');
+    // 🔹 CANCHA SECUNDARIA YA NO ES OBLIGATORIA
     if (newTeam.players.length < 11) newErrors.push('Debe haber mínimo 11 jugadores');
 
     setErrors(newErrors);
@@ -215,15 +255,16 @@ export default function TeamManagement() {
         });
 
         const fetchedTeams = await TeamService.getTeams(tournamentIdNum);
-        setTeams(fetchedTeams || []);
+        setTeams(fetchedTeams);
 
         resetForm();
         setIsModalOpen(false);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error saving team:', error);
+        const errorMessage = error.message || 'No se pudo guardar el equipo';
         toast({
           title: 'Error',
-          description: 'No se pudo guardar el equipo',
+          description: errorMessage,
           variant: 'destructive',
         });
       } finally {
@@ -244,13 +285,15 @@ export default function TeamManagement() {
     setIsEditModalOpen(true);
   };
 
+  // 🔹 VALIDACIÓN DE EDICIÓN CORREGIDA
   const handleUpdateTeam = async () => {
     if (!editingTeam || !idTournament) return;
 
-    if (!editFormData.name || !editFormData.coach || !editFormData.teamCategory || !editFormData.mainStadium || !editFormData.secondaryStadium) {
+    if (!editFormData.name?.trim() || !editFormData.coach?.trim() || 
+        !editFormData.teamCategory || !editFormData.mainStadium?.trim()) {
       toast({
         title: 'Error',
-        description: 'Todos los campos son obligatorios',
+        description: 'Los campos marcados con * son obligatorios',
         variant: 'destructive',
       });
       return;
@@ -259,7 +302,7 @@ export default function TeamManagement() {
     setIsSaving(true);
     try {
       const tournamentIdNum = parseInt(idTournament);
-      await TeamService.updateTeam(tournamentIdNum, editingTeam.id || 0, editFormData);
+      await TeamService.updateTeam(tournamentIdNum, editingTeam.id, editFormData);
 
       toast({
         title: 'Éxito',
@@ -267,15 +310,16 @@ export default function TeamManagement() {
       });
 
       const fetchedTeams = await TeamService.getTeams(tournamentIdNum);
-      setTeams(fetchedTeams || []);
+      setTeams(fetchedTeams);
 
       setIsEditModalOpen(false);
       setEditingTeam(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating team:', error);
+      const errorMessage = error.message || 'No se pudo actualizar el equipo';
       toast({
         title: 'Error',
-        description: 'No se pudo actualizar el equipo',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -300,13 +344,14 @@ export default function TeamManagement() {
       });
 
       const fetchedTeams = await TeamService.getTeams(tournamentIdNum);
-      setTeams(fetchedTeams || []);
+      setTeams(fetchedTeams);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting team:', error);
+      const errorMessage = error.message || 'No se pudo eliminar el equipo';
       toast({
         title: 'Error',
-        description: 'No se pudo eliminar el equipo',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -338,7 +383,7 @@ export default function TeamManagement() {
     setEditingTeam(null);
   };
 
-  const isFormValid = errors.length === 0 && newTeam.name !== '';
+  const isFormValid = errors.length === 0 && newTeam.name.trim() !== '';
 
   if (isLoading) {
     return (
@@ -422,7 +467,7 @@ export default function TeamManagement() {
                   Registrar Nuevo Equipo
                 </DialogTitle>
                 <DialogDescription>
-                  Complete todos los campos obligatorios para registrar el equipo
+                  Complete los campos obligatorios (*) para registrar el equipo
                 </DialogDescription>
               </DialogHeader>
 
@@ -443,7 +488,9 @@ export default function TeamManagement() {
                 {/* Team Basic Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="teamName">Nombre del Equipo *</Label>
+                    <Label htmlFor="teamName" className="flex items-center">
+                      Nombre del Equipo <span className="text-red-500 ml-1">*</span>
+                    </Label>
                     <Input
                       id="teamName"
                       value={newTeam.name}
@@ -454,7 +501,9 @@ export default function TeamManagement() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="coach">Director Técnico *</Label>
+                    <Label htmlFor="coach" className="flex items-center">
+                      Director Técnico <span className="text-red-500 ml-1">*</span>
+                    </Label>
                     <Input
                       id="coach"
                       value={newTeam.coach}
@@ -465,7 +514,9 @@ export default function TeamManagement() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="category">Categoría *</Label>
+                    <Label htmlFor="category" className="flex items-center">
+                      Categoría <span className="text-red-500 ml-1">*</span>
+                    </Label>
                     <Select value={newTeam.category} onValueChange={(value) => handleInputChange('category', value)}>
                       <SelectTrigger className="rounded-lg">
                         <SelectValue placeholder="Seleccionar categoría" />
@@ -481,7 +532,9 @@ export default function TeamManagement() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="mainField">Cancha Principal *</Label>
+                    <Label htmlFor="mainField" className="flex items-center">
+                      Cancha Principal <span className="text-red-500 ml-1">*</span>
+                    </Label>
                     <Input
                       id="mainField"
                       value={newTeam.mainField}
@@ -492,7 +545,9 @@ export default function TeamManagement() {
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="secondaryField">Cancha Secundaria *</Label>
+                    <Label htmlFor="secondaryField">
+                      Cancha Secundaria <span className="text-gray-400 text-sm ml-1">(Opcional)</span>
+                    </Label>
                     <Input
                       id="secondaryField"
                       value={newTeam.secondaryField}
@@ -506,7 +561,12 @@ export default function TeamManagement() {
                 {/* Players Section */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label className="text-lg font-semibold">Jugadores ({newTeam.players.length}/11 mínimo)</Label>
+                    <Label className="text-lg font-semibold flex items-center">
+                      Jugadores <span className="text-red-500 ml-1">*</span>
+                      <span className="text-sm font-normal text-gray-500 ml-2">
+                        ({newTeam.players.length}/11 mínimo)
+                      </span>
+                    </Label>
                   </div>
 
                   <Card className="border border-gray-200">
@@ -516,18 +576,22 @@ export default function TeamManagement() {
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="playerName">Nombre *</Label>
+                          <Label htmlFor="playerName" className="flex items-center">
+                            Nombre <span className="text-red-500 ml-1">*</span>
+                          </Label>
                           <Input
                             id="playerName"
                             value={newPlayer.name}
                             onChange={(e) => setNewPlayer(prev => ({ ...prev, name: e.target.value }))}
-                            placeholder="Nombre"
+                            placeholder="Nombre completo"
                             className="rounded-lg"
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="position">Posición *</Label>
+                          <Label htmlFor="position" className="flex items-center">
+                            Posición <span className="text-red-500 ml-1">*</span>
+                          </Label>
                           <Select value={newPlayer.position} onValueChange={(value) => setNewPlayer(prev => ({ ...prev, position: value }))}>
                             <SelectTrigger className="rounded-lg">
                               <SelectValue placeholder="Seleccionar" />
@@ -543,7 +607,9 @@ export default function TeamManagement() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="dorsalNumber">N° *</Label>
+                          <Label htmlFor="dorsalNumber" className="flex items-center">
+                            N° <span className="text-red-500 ml-1">*</span>
+                          </Label>
                           <Input
                             id="dorsalNumber"
                             type="number"
@@ -614,9 +680,7 @@ export default function TeamManagement() {
                   <Button
                     onClick={handleSaveTeam}
                     disabled={!isFormValid || isSaving}
-                    className={`flex-1 bg-primary hover:bg-primary/90 text-white rounded-lg ${
-                      !isFormValid || isSaving ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
+                    className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Save className="w-4 h-4 mr-2" />
                     {isSaving ? 'Guardando...' : 'Guardar equipo'}
@@ -640,21 +704,25 @@ export default function TeamManagement() {
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {paginatedTeams.map((team, idx) => {
-                    // fallbackKey: si team.id es undefined o nulo, creamos una key estable por página
-                    const fallbackKey = `team-${idTournament ?? 'no-t'}-${startIndex + idx}`;
+                    const stableKey = team.id 
+                      ? `team-${team.id}` 
+                      : `team-${idTournament}-${startIndex + idx}-${team.name?.replace(/\s+/g, '-')}`;
+                    
                     return (
                       <Card
-                        key={team.id ?? fallbackKey}
+                        key={stableKey}
                         className="border border-gray-200 hover:shadow-lg transition-all duration-200 overflow-hidden"
                       >
-                        <CardHeader className="pb-3 cursor-pointer hover:bg-gray-50" onClick={() => {console.log('🖱️ Click en equipo:', team.id);
-    handleTeamClick(team.id)}}>
+                        <CardHeader 
+                          className="pb-3 cursor-pointer hover:bg-gray-50" 
+                          onClick={() => handleTeamClick(team.id)}
+                        >
                           <div className="flex items-start justify-between">
                             <CardTitle className="text-lg font-semibold text-gray-900 leading-tight flex-1">
-                              {team.name}
+                              {team.name || 'Equipo sin nombre'}
                             </CardTitle>
-                            <Badge variant="outline" className="text-xs ml-2">
-                              {team.category}
+                            <Badge variant="outline" className="text-xs ml-2 capitalize">
+                              {team.category || 'sin-categoria'}
                             </Badge>
                           </div>
                         </CardHeader>
@@ -662,108 +730,148 @@ export default function TeamManagement() {
                           <div className="flex items-center text-sm text-gray-600">
                             <UserCheck className="w-4 h-4 mr-2 text-primary" />
                             <span className="font-medium">DT:</span>
-                            <span className="ml-1">{team.coach}</span>
+                            <span className="ml-1">{team.coach || 'No asignado'}</span>
                           </div>
                           <div className="flex items-center text-sm text-gray-600">
                             <Users className="w-4 h-4 mr-2 text-primary" />
-                            <span>Campo: {team.mainField}</span>
+                            <span>Campo: {team.mainField || 'No asignado'}</span>
                           </div>
 
-                        {/* Action Buttons */}
-                        <div className="flex gap-2 pt-3 border-t">
-                          <Dialog open={isEditModalOpen && editingTeam?.id === team.id} onOpenChange={(open) => {
-                            if (!open) handleCloseEditModal();
-                          }}>
-                            <DialogTrigger asChild>
-                              <Button
-                                onClick={(e) => {
+                          {/* Action Buttons */}
+                          <div className="flex gap-2 pt-3 border-t">
+                            <Dialog 
+                              open={isEditModalOpen && editingTeam?.id === team.id} 
+                              onOpenChange={(open) => !open && handleCloseEditModal()}
+                            >
+                              <DialogTrigger asChild>
+                                <Button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditTeam(team);
+                                  }}
+                                  size="sm"
+                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                                >
+                                  <Edit2 className="w-4 h-4 mr-1" />
+                                  Editar
+                                </Button>
+                              </DialogTrigger>
+
+                              <DialogContent className="max-w-md">
+                                <DialogHeader>
+                                  <DialogTitle className="text-lg font-semibold">
+                                    Editar Equipo
+                                  </DialogTitle>
+                                  <DialogDescription>
+                                    Modifique los datos del equipo (los campos con * son obligatorios)
+                                  </DialogDescription>
+                                </DialogHeader>
+
+                                <div className="space-y-4 py-4">
+                                  <div className="space-y-2">
+                                    <Label htmlFor="edit-name" className="flex items-center">
+                                      Nombre del Equipo <span className="text-red-500 ml-1">*</span>
+                                    </Label>
+                                    <Input
+                                      id="edit-name"
+                                      value={editFormData.name}
+                                      onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                      className="rounded-lg"
+                                    />
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label htmlFor="edit-coach" className="flex items-center">
+                                      Director Técnico <span className="text-red-500 ml-1">*</span>
+                                    </Label>
+                                    <Input
+                                      id="edit-coach"
+                                      value={editFormData.coach}
+                                      onChange={(e) => setEditFormData({ ...editFormData, coach: e.target.value })}
+                                      className="rounded-lg"
+                                    />
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label htmlFor="edit-category" className="flex items-center">
+                                      Categoría <span className="text-red-500 ml-1">*</span>
+                                    </Label>
+                                    <Select 
+                                      value={editFormData.teamCategory} 
+                                      onValueChange={(value) => setEditFormData({ ...editFormData, teamCategory: value })}
+                                    >
+                                      <SelectTrigger className="rounded-lg">
+                                        <SelectValue placeholder="Seleccionar categoría" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {categories.map(category => (
+                                          <SelectItem key={category.value} value={category.value}>
+                                            {category.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label htmlFor="edit-mainStadium" className="flex items-center">
+                                      Cancha Principal <span className="text-red-500 ml-1">*</span>
+                                    </Label>
+                                    <Input
+                                      id="edit-mainStadium"
+                                      value={editFormData.mainStadium}
+                                      onChange={(e) => setEditFormData({ ...editFormData, mainStadium: e.target.value })}
+                                      className="rounded-lg"
+                                    />
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label htmlFor="edit-secondaryStadium">
+                                      Cancha Secundaria <span className="text-gray-400 text-sm ml-1">(Opcional)</span>
+                                    </Label>
+                                    <Input
+                                      id="edit-secondaryStadium"
+                                      value={editFormData.secondaryStadium}
+                                      onChange={(e) => setEditFormData({ ...editFormData, secondaryStadium: e.target.value })}
+                                      className="rounded-lg"
+                                    />
+                                  </div>
+
+                                  <div className="flex gap-2 pt-2">
+                                    <Button
+                                      onClick={handleCloseEditModal}
+                                      variant="outline"
+                                      className="flex-1"
+                                      disabled={isSaving}
+                                    >
+                                      Cancelar
+                                    </Button>
+                                    <Button
+                                      onClick={handleUpdateTeam}
+                                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                                      disabled={isSaving}
+                                    >
+                                      {isSaving ? 'Actualizando...' : 'Actualizar'}
+                                    </Button>
+                                  </div>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
                                   e.stopPropagation();
-                                  handleEditTeam(team);
-                                }}
-                                size="sm"
-                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-                              >
-                                <Edit2 className="w-4 h-4 mr-1" />
-                                Editar
-                              </Button>
-                            </DialogTrigger>
-
-                            <DialogContent className="max-w-md">
-                              <DialogHeader>
-                                <DialogTitle className="text-lg font-semibold">
-                                  Editar Equipo
-                                </DialogTitle>
-                              </DialogHeader>
-
-                              <div className="space-y-4 py-4">
-                                <div className="space-y-2">
-                                  <Label htmlFor="edit-name">Nombre del Equipo *</Label>
-                                  <Input
-                                    id="edit-name"
-                                    value={editFormData.name}
-                                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                                    className="rounded-lg"
-                                  />
-                                </div>
-                                {/* Resto de campos de edición simplificados para el ejemplo, asegurate de que estén todos */}
-                                <div className="space-y-2">
-                                  <Label htmlFor="edit-coach">Director Técnico *</Label>
-                                  <Input
-                                    id="edit-coach"
-                                    value={editFormData.coach}
-                                    onChange={(e) => setEditFormData({ ...editFormData, coach: e.target.value })}
-                                    className="rounded-lg"
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit-mainStadium">Cancha Principal</Label>
-                                    <Input
-                                        value={editFormData.mainStadium}
-                                        onChange={(e) => setEditFormData({ ...editFormData, mainStadium: e.target.value })}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit-secondaryStadium">Cancha Secundaria</Label>
-                                    <Input
-                                        value={editFormData.secondaryStadium}
-                                        onChange={(e) => setEditFormData({ ...editFormData, secondaryStadium: e.target.value })}
-                                    />
-                                </div>
-
-                                <div className="flex gap-2 pt-2">
-                                  <Button
-                                    onClick={handleCloseEditModal}
-                                    variant="outline"
-                                    className="flex-1"
-                                  >
-                                    Cancelar
-                                  </Button>
-                                  <Button
-                                    onClick={handleUpdateTeam}
-                                    className="flex-1 bg-blue-600 text-white"
-                                  >
-                                    Actualizar
-                                  </Button>
-                                </div>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-
-                          {/* Botón Eliminar Reconstruido */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if(team.id) handleDeleteTeam(team.id);
-                            }}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            disabled={isDeleting && deletingTeamId === team.id}
-                           >
-                            {isDeleting && deletingTeamId === team.id ? '...' : <Trash2 className="w-4 h-4" />}
-                           </Button>
-                        </div>
-                      </CardContent>
+                                  if(team.id) handleDeleteTeam(team.id);
+                              }}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              disabled={isDeleting && deletingTeamId === team.id}
+                            >
+                              {isDeleting && deletingTeamId === team.id ? '...' : <Trash2 className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                        </CardContent>
                       </Card>
                     );
                   })}
@@ -771,31 +879,31 @@ export default function TeamManagement() {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="flex justify-center mt-6 gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                            disabled={currentPage === 1}
-                        >
-                            Anterior
-                        </Button>
-                        <span className="flex items-center px-4 text-sm">
-                            Página {currentPage} de {totalPages}
-                        </span>
-                        <Button
-                            variant="outline"
-                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                            disabled={currentPage === totalPages}
-                        >
-                            Siguiente
-                        </Button>
-                    </div>
+                  <div className="flex justify-center mt-6 gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Anterior
+                    </Button>
+                    <span className="flex items-center px-4 text-sm">
+                      Página {currentPage} de {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
                 )}
               </>
             ) : (
-                <div className="text-center py-10 text-gray-500">
-                    No hay equipos registrados o no coinciden con la búsqueda.
-                </div>
+              <div className="text-center py-10 text-gray-500">
+                No hay equipos registrados o no coinciden con la búsqueda.
+              </div>
             )}
           </CardContent>
         </Card>

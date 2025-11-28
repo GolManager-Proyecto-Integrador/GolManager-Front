@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Settings, Info, Zap } from "lucide-react";
+import { Calendar, Settings, Info, Zap, ArrowLeft } from "lucide-react";
 import { generarLlavesEnfrentamientos } from "@/services/matchGeneratorService";
 import { toast } from "sonner";
 
@@ -16,6 +16,7 @@ interface MatchGenerated {
 }
 
 export default function GeneracionAutomatica() {
+  const navigate = useNavigate();
   const { idTournament } = useParams<{ idTournament: string }>();
   const [generacionActiva, setGeneracionActiva] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -122,11 +123,13 @@ export default function GeneracionAutomatica() {
           <div className="bg-red-100 text-red-600 p-4 rounded-lg">
             <h3 className="text-lg font-medium">Error: ID de torneo no encontrado</h3>
             <p className="mt-2">La URL no contiene el ID del torneo.</p>
-            <Link to="/dashboard-organizador">
-              <Button className="mt-4">
-                Volver al dashboard
-              </Button>
-            </Link>
+            <Button 
+              onClick={() => navigate('/dashboard-organizador')}
+              className="mt-4"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Volver al dashboard
+            </Button>
           </div>
         </div>
       </div>
@@ -136,6 +139,16 @@ export default function GeneracionAutomatica() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 py-8 px-4">
       <div className="max-w-6xl mx-auto">
+        {/* Botón Volver al Dashboard - AÑADIDO AQUÍ */}
+        <Button 
+          onClick={() => navigate('/dashboard-organizador')}
+          variant="outline"
+          className="mb-6"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Volver al dashboard
+        </Button>
+
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
@@ -151,7 +164,7 @@ export default function GeneracionAutomatica() {
           </p>
         </div>
 
-        {/* Main Card */}
+        {/* Resto del código permanece igual */}
         <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
           <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
             <div className="flex items-center justify-between">
@@ -159,7 +172,7 @@ export default function GeneracionAutomatica() {
                 <Zap className="w-6 h-6" />
                 Generación Automática
               </CardTitle>
-              <Link to={`/tournament/${idTournament}/upcoming-matches`}>
+              <Link to={`/proximos-partidos/${idTournament}`}>
                 <Button
                   variant="secondary"
                   size="sm"

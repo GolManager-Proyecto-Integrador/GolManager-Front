@@ -21,6 +21,13 @@ export default function ReglasTorneo() {
   document.title = `Reglas del Torneo`;
 }, );
 
+    <Button 
+    onClick={() => navigate('/dashboard-organizador')}
+    className="mt-4"
+    >
+    Volver al dashboard
+    </Button>
+
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 

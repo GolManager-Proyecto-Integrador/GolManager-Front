@@ -80,7 +80,7 @@ const App = () => (
           />
 
           <Route
-            path="/generacion-automatica"
+            path="/tournament/:idTournament/generate-matches"  
             element={
               <ProtectedRoute role="USER">
                 <GeneracionAutomatica />
