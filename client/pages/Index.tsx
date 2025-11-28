@@ -1,8 +1,13 @@
 import { Link } from "react-router-dom";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Calendar, Users, ChevronRight, LogIn, Eye } from "lucide-react";
+
+useEffect(() => {
+  document.title = `GolManager`;
+}, );
 
 export default function Index() {
   // Mock data for featured tournaments
@@ -10,7 +15,7 @@ export default function Index() {
     {
       id: 1,
       name: "Copa Primavera 2025",
-      startDate: "05 de Diciembre, 2025",
+      startDate: "25 de Diciembre, 2025",
       status: "en curso",
       statusColor: "bg-blue-500 text-white",
     },
@@ -24,7 +29,7 @@ export default function Index() {
     {
       id: 3,
       name: "Torneo de Verano",
-      startDate: "10 de Diciembre, 2025",
+      startDate: "12 de Diciembre, 2025",
       status: "finalizado",
       statusColor: "bg-green-500 text-white",
     },

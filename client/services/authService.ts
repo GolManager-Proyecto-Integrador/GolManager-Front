@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:8085/api/auth"; // 👈 Backend base URL
+const API_URL = "/api/auth"; // 👈 Backend base URL
 
 // 🔹 Iniciar sesión
 export async function login(email: string, password: string) {

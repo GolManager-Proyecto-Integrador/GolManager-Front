@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,11 @@ import { Lock, User, Eye, EyeOff, Shield, AlertTriangle } from "lucide-react";
 
 import { jwtDecode } from "jwt-decode";
 
-
-// 👇 importa tu servicio
 import { login } from "../services/authService";
+
+useEffect(() => {
+  document.title = `Iniciar Sesión`;
+}, );
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -148,15 +150,6 @@ export default function Login() {
                 )}
               </Button>
 
-              {/* Forgot Password Link */}
-              <div className="text-center">
-                <Link
-                  to="/forgot-password"
-                  className="text-blue-600 hover:text-blue-700 text-sm font-medium hover:underline transition-colors"
-                >
-                  ¿Olvidaste tu contraseña?
-                </Link>
-              </div>
             </form>
 
             {/* Footer Text */}

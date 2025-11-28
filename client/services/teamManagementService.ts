@@ -1,7 +1,7 @@
 import axios from "axios";
 import { getToken } from "./authService";
 
-const API_BASE = "http://localhost:8085/api/tournaments";
+const API_BASE = "/api/tournaments";
 
 // =======================
 // 🔹 CONFIGURACIÓN AXIOS
@@ -13,7 +13,7 @@ const apiClient = axios.create({
   },
 });
 
-// Interceptor (mantener el que tienes)
+// Interceptor 
 apiClient.interceptors.request.use(
   (config) => {
     let token = getToken();

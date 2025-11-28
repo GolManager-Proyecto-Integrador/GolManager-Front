@@ -47,6 +47,10 @@ export default function AdminDashboard() {
     fetchDashboard();
   }, [navigate]);
 
+  useEffect(() => {
+    document.title = `Panel de Administrador`;
+  }, );
+
   const summaryMetrics = [
     {
       id: "organizers",
@@ -132,7 +136,7 @@ export default function AdminDashboard() {
             <Button
               variant="ghost"
               onClick={() => {
-                logout(); // 👈 elimina el token
+                logout(); // elimina el token
                 navigate("/login"); // redirige al login
               }}
               className="w-full justify-start h-auto py-3 px-4 text-sm font-semibold rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"

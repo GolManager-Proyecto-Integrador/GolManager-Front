@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Search, Edit, Trash2, ArrowLeft } from "lucide-react";
 import { organizerService } from "@/services/organizerService";
-import { dashboardService } from "@/services/admdashboardService"; // 👈 Se usa para traer el nombre del admin
+import { dashboardService } from "@/services/admdashboardService"; 
 
 interface Organizer {
   id: string;
@@ -50,9 +50,13 @@ export default function OrganizerManagement() {
   );
   const [loading, setLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [adminName, setAdminName] = useState("Cargando..."); // 👈 nombre dinámico del admin
+  const [adminName, setAdminName] = useState("Cargando..."); 
 
-  // 🔹 Cargar organizadores
+  useEffect(() => {
+    document.title = `Gestión de Organizadores`;
+  }, );
+
+  // Cargar organizadores
   useEffect(() => {
     const fetchData = async () => {
       const token = localStorage.getItem("token");
@@ -85,7 +89,7 @@ export default function OrganizerManagement() {
       org.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // 🔹 Editar organizador
+  // Editar organizador
   const handleEditClick = (organizer: Organizer) => {
     setEditingOrganizer({
       ...organizer,
@@ -95,7 +99,7 @@ export default function OrganizerManagement() {
     setIsEditDialogOpen(true);
   };
 
-  // 🔹 Guardar cambios (PUT)
+  // Guardar cambios (PUT)
   const handleSaveChanges = async () => {
     if (!editingOrganizer) return;
 
@@ -111,7 +115,7 @@ export default function OrganizerManagement() {
     try {
       await organizerService.update(payload, token);
 
-      // 🔄 Refrescar lista
+      // Refrescar lista
       const updatedOrganizers = await organizerService.getAll(token);
       setOrganizers(updatedOrganizers);
 
@@ -125,7 +129,7 @@ export default function OrganizerManagement() {
     }
   };
 
-  // 🔹 Eliminar organizador
+  // Eliminar organizador
   const handleDeleteClick = (organizerId: string) => {
     setOrganizerToDelete(organizerId);
     setIsDeleteDialogOpen(true);

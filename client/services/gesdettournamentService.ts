@@ -4,11 +4,9 @@
 import axios from "axios";
 import { getToken } from "./authService";
 
-const API_URL = "http://localhost:8085/api/tournaments";
+const API_URL = "/api/tournaments";
 
 
-
-// ==================== 🔹 Tipos ====================
 export interface TournamentData {
   id: number;
   name: string;
@@ -50,6 +48,11 @@ export interface PlayerStat {
   yellowCards?: number;
 }
 
+export interface Team {
+  id: number;
+  name: string;
+}
+
 // ==================== 🔹 PETICIONES ====================
 
 // 1️⃣ Obtener información general del torneo
@@ -61,7 +64,7 @@ async function getTournament(idTournament: string): Promise<TournamentData> {
 
   const t = response.data;
 
-    // 🔹 Ajustar fechas a horario colombiano
+  // 🔹 Ajustar fechas a horario colombiano
   const startDate = adjustToColombianTime(t.startDate);
   const endDate = adjustToColombianTime(t.endDate);
 
@@ -194,6 +197,81 @@ async function getSuspendedPlayers(idTournament: string): Promise<any[]> {
   return response.data.players || [];
 }
 
+// 8️⃣ Obtener todos los equipos del torneo con sus IDs
+async function getTournamentTeams(idTournament: string): Promise<Team[]> {
+  const token = getToken();
+  
+  try {
+    const response = await axios.get(`${API_URL}/${idTournament}/teams`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    console.log('🔍 Respuesta completa de teams endpoint:', {
+      status: response.status,
+      data: response.data,
+      dataType: typeof response.data
+    });
+
+    // Manejar diferentes estructuras de respuesta
+    let teamsArray: any[] = [];
+
+    if (response.data && Array.isArray(response.data)) {
+      teamsArray = response.data;
+    } else if (response.data && response.data.teams && Array.isArray(response.data.teams)) {
+      teamsArray = response.data.teams;
+    } else if (response.data && response.data.referees) {
+      console.error('❌ ERROR: El endpoint devolvió árbitros en lugar de equipos');
+      return [];
+    } else {
+      console.warn('⚠️ Estructura inesperada, devolviendo array vacío');
+      return [];
+    }
+
+    // Mapear a la estructura esperada
+    const mappedTeams = teamsArray.map(item => ({
+      id: item.id || item.teamId || 0,
+      name: item.name || item.teamName || 'Equipo sin nombre'
+    })).filter(team => team.id > 0 && team.name); // Filtrar equipos con ID y nombre válidos
+
+    console.log(`✅ ${mappedTeams.length} equipos mapeados:`, mappedTeams);
+    return mappedTeams;
+
+  } catch (error: any) {
+    console.error('❌ Error obteniendo equipos:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    
+    if (error.response?.status === 404) {
+      console.log('📭 El torneo no tiene equipos registrados');
+      return [];
+    }
+    
+    return [];
+  }
+}
+
+// 9️⃣ Obtener detalles de un equipo específico (por si acaso)
+async function getTeamDetails(idTournament: string, idTeam: string): Promise<Team | null> {
+  const token = getToken();
+  
+  try {
+    const response = await axios.get(`${API_URL}/${idTournament}/teams/${idTeam}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const teamData = response.data;
+    return {
+      id: teamData.id || parseInt(idTeam),
+      name: teamData.name || teamData.teamName || 'Equipo sin nombre'
+    };
+  } catch (error) {
+    console.error(`Error obteniendo detalles del equipo ${idTeam}:`, error);
+    return null;
+  }
+}
+
 export default {
   getTournament,
   getStandings,
@@ -201,6 +279,7 @@ export default {
   getTopYellowCards,
   getRecentMatches,
   getUpcomingMatches,
-  getSuspendedPlayers, 
+  getSuspendedPlayers,
+  getTournamentTeams, // ✅ NUEVA FUNCIÓN
+  getTeamDetails,      // ✅ FUNCIÓN ADICIONAL
 };
-

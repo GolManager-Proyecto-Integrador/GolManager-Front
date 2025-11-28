@@ -9,6 +9,10 @@ import { Users, Trophy, Search, Plus, Edit, Trash2 } from "lucide-react";
 
 import teamService, { Team } from "@/services/teamService";
 
+useEffect(() => {
+  document.title = `Equipos Inscritos`;
+}, );
+
 export default function Teams() {
   const [searchTerm, setSearchTerm] = useState("");
   const [teams, setTeams] = useState<Team[]>([]);
@@ -52,7 +56,7 @@ export default function Teams() {
       )
   );
 
-  // 🗑️ Eliminar equipo
+  // Eliminar equipo
   const handleDeleteTeam = async (teamId: string) => {
     if (!confirm("¿Estás seguro de que deseas eliminar este equipo?")) return;
     try {
@@ -64,7 +68,7 @@ export default function Teams() {
     }
   };
 
-  // ✏️ Abrir modal de edición
+  // Abrir modal de edición
   const openEditModal = (team: Team) => {
     setSelectedTeam(team);
     setEditedName(team.name);
@@ -72,7 +76,7 @@ export default function Teams() {
     setEditModalOpen(true);
   };
 
-  // 💾 Guardar cambios
+  // Guardar cambios
   const handleSaveEdit = async () => {
     if (!selectedTeam || !idTournament) return;
     try {

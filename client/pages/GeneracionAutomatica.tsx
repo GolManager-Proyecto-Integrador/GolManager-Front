@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,8 +41,12 @@ export default function GeneracionAutomatica() {
     });
   };
 
+  useEffect(() => {
+    document.title = `Generar Partidos - Torneo #${idTournament}`;
+  }, [idTournament]);
+
   // ============================
-  // LLAMADA AL BACKEND - CORREGIDA
+  // LLAMADA AL BACKEND 
   // ============================
   const generarCalendario = async () => {
     if (!idTournament) {
@@ -54,16 +58,36 @@ export default function GeneracionAutomatica() {
       setLoading(true);
       setGeneracionActiva(true);
 
+      console.log(`🎯 Iniciando generación para torneo: ${idTournament}`);
+      
       const data = await generarLlavesEnfrentamientos(parseInt(idTournament));
+
+      // Verificar si se generaron partidos
+      if (!data || data.length === 0) {
+        toast.warning("No se generaron partidos. ¿El torneo tiene equipos registrados?");
+        setPartidosBackend([]);
+        return;
+      }
 
       const partidosMapeados = mapBackendMatches(data);
       setPartidosBackend(partidosMapeados);
       
-      toast.success(`Se generaron ${partidosMapeados.length} partidos exitosamente`);
+      console.log(`✅ ${partidosMapeados.length} partidos mapeados correctamente`);
+      toast.success(`✅ Se generaron ${partidosMapeados.length} partidos exitosamente`);
       
     } catch (error: any) {
-      console.error("Error generando partidos:", error);
-      const errorMessage = error?.message || "Error al generar el calendario";
+      console.error("❌ Error generando partidos:", error);
+      
+      // Mensajes de error más específicos
+      let errorMessage = "Error al generar el calendario";
+      if (error.response?.status === 404) {
+        errorMessage = "No se encontró el torneo o no tiene equipos registrados";
+      } else if (error.response?.status === 400) {
+        errorMessage = "El torneo no tiene suficientes equipos para generar partidos";
+      } else if (error.message?.includes("Network Error")) {
+        errorMessage = "Error de conexión con el servidor";
+      }
+      
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -165,7 +189,8 @@ export default function GeneracionAutomatica() {
                 {loading ? "Generando..." : "Generar calendario automático"}
               </Button>
               
-              {generacionActiva && !loading && partidosBackend && (
+              {/* Mensaje de éxito */}
+              {generacionActiva && !loading && partidosBackend && partidosBackend.length > 0 && (
                 <div className="mt-4">
                   <div className="flex items-center justify-center gap-2 text-green-600 font-medium">
                     <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
@@ -176,6 +201,21 @@ export default function GeneracionAutomatica() {
                   </p>
                 </div>
               )}
+
+              {/* Mensaje cuando no se generaron partidos */}
+              {generacionActiva && !loading && partidosBackend && partidosBackend.length === 0 && (
+                <div className="mt-4">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 max-w-md mx-auto">
+                    <div className="flex items-center justify-center gap-2 text-yellow-700 font-medium">
+                      <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                      No se generaron partidos
+                    </div>
+                    <p className="text-sm text-yellow-600 mt-1 text-center">
+                      El torneo podría no tener equipos registrados o no cumplir con los requisitos.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* SPINNER GRANDE MIENTRAS LLEGA EL BACKEND */}
@@ -183,11 +223,12 @@ export default function GeneracionAutomatica() {
               <div className="flex flex-col items-center justify-center py-10">
                 <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                 <p className="mt-4 text-blue-700 font-medium">Generando partidos para el torneo #{idTournament}...</p>
+                <p className="text-sm text-gray-500 mt-2">Esto puede tomar unos segundos</p>
               </div>
             )}
 
             {/* Generated Calendar */}
-            {generacionActiva && !loading && partidosBackend && (
+            {generacionActiva && !loading && partidosBackend && partidosBackend.length > 0 && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900">
                   Calendario Generado ({partidosBackend.length} partidos)
@@ -257,6 +298,9 @@ export default function GeneracionAutomatica() {
                     • Asigna fechas y horarios automáticamente<br/>
                     • Los partidos generados aparecerán en "Partidos Programados"<br/>
                     • Desde allí podrás editarlos, eliminarlos o acceder a su gestión detallada
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Requisitos: El torneo debe tener al menos 2 equipos registrados.
                   </p>
                 </div>
               </div>

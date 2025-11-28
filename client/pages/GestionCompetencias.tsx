@@ -57,7 +57,7 @@ export default function GestionCompetencias() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // 🔹 Obtener torneos
+  // Obtener torneos
   const fetchTournaments = async () => {
     try {
       setLoading(true);
@@ -74,13 +74,17 @@ export default function GestionCompetencias() {
     fetchTournaments();
   }, []);
 
-  // 🔹 Editar torneo
+  // Editar torneo
   const handleEditTournament = (id: string) => {
     setSelectedTournamentId(id);
     setIsEditModalOpen(true);
   };
 
-  // 🔹 Eliminar torneo
+  useEffect(() => {
+    document.title = `Gestión de Competencias`;
+  },);
+
+  // Eliminar torneo
   const handleDeleteTournament = async (id: string) => {
     const confirmDelete = window.confirm(
       "¿Estás seguro de que deseas eliminar este torneo?"

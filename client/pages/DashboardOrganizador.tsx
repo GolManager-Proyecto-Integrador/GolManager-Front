@@ -44,6 +44,10 @@ export default function Dashboard() {
     loadData();
   }, []);
 
+    useEffect(() => {
+    document.title = `Panel de Organizador`;
+  }, );
+
   const navigationItems = [
     { icon: LayoutGrid, label: "Dashboard", href: "/dashboard-organizador" },
     { icon: Trophy, label: "Torneos", href: "/gestion-competencias" },

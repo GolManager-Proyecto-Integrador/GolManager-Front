@@ -78,6 +78,10 @@ export default function TeamManagement() {
     dorsalNumber: ''
   });
 
+  useEffect(() => {
+    document.title = `Gestión de Equipos`;
+  }, );
+
   // Fetch teams on mount
   useEffect(() => {
     const fetchTeams = async () => {

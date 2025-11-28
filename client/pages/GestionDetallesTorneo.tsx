@@ -27,9 +27,10 @@ import gesdettournamentService, {
   TeamStanding,
   Match,
   PlayerStat,
+  Team,
 } from "@/services/gesdettournamentService";
 
-// ✅ Calcula el estado actual del torneo según las fechas
+// Calcula el estado actual del torneo según las fechas
 const getTournamentStatus = (startDate: string, endDate: string) => {
   const now = new Date();
   const start = new Date(startDate);
@@ -40,7 +41,7 @@ const getTournamentStatus = (startDate: string, endDate: string) => {
   return "En curso";
 };
 
-// ✅ Define el color del Badge según el estado
+// Define el color del Badge según el estado
 const getStatusColor = (status: string) => {
   switch (status) {
     case "Pendiente":
@@ -81,32 +82,61 @@ export default function GestionDetallesTorneo() {
   const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
   const [topScorers, setTopScorers] = useState<PlayerStat[]>([]);
   const [topYellows, setTopYellows] = useState<PlayerStat[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Actualizar título de la pestaña
+  useEffect(() => {
+    if (tournament) {
+      document.title = `${tournament.name} - Detalles del Torneo`;
+    } else {
+      document.title = `Detalles del Torneo | Sistema Torneos`;
+    }
+  }, [tournament]);
 
   useEffect(() => {
     if (!id) return;
 
     const fetchData = async () => {
       try {
-        const tournamentData = await gesdettournamentService.getTournament(id);
+        console.log('🔄 Iniciando carga de datos del torneo...');
+
+        // Cargar datos en paralelo para mejor rendimiento
+        const [
+          tournamentData,
+          standingsData,
+          teamsData,
+          scorers,
+          yellows,
+          recent,
+          upcoming
+        ] = await Promise.all([
+          gesdettournamentService.getTournament(id),
+          gesdettournamentService.getStandings(id),
+          gesdettournamentService.getTournamentTeams(id), 
+          gesdettournamentService.getTopScorers(id),
+          gesdettournamentService.getTopYellowCards(id),
+          gesdettournamentService.getRecentMatches(id),
+          gesdettournamentService.getUpcomingMatches(id)
+        ]);
+
         setTournament(tournamentData);
-
-        const standingsData = await gesdettournamentService.getStandings(id);
         setStandings(standingsData);
-
-        const scorers = await gesdettournamentService.getTopScorers(id);
+        setTeams(teamsData); 
         setTopScorers(scorers);
-
-        const yellows = await gesdettournamentService.getTopYellowCards(id);
         setTopYellows(yellows);
-
-        const recent = await gesdettournamentService.getRecentMatches(id);
         setRecentMatches(recent);
-
-        const upcoming = await gesdettournamentService.getUpcomingMatches(id);
         setUpcomingMatches(upcoming);
+
+        console.log('✅ Datos cargados exitosamente:', {
+          tournament: tournamentData.name,
+          equipos: teamsData.length,
+          posiciones: standingsData.length,
+          goleadores: scorers.length
+        });
+
       } catch (error) {
-        console.error("Error cargando datos del torneo:", error);
+        console.error("❌ Error cargando datos del torneo:", error);
       } finally {
         setLoading(false);
       }
@@ -115,14 +145,42 @@ export default function GestionDetallesTorneo() {
     fetchData();
   }, [id]);
 
-  const handleTeamClick = (team: string) => {
-    navigate("/team/1"); // TODO: Reemplazar cuando backend devuelva el ID real
+  
+  const handleTeamClick = (teamName: string) => {
+    console.log(`🖱️ Click en equipo: "${teamName}"`);
+    console.log(`📋 Equipos disponibles:`, teams);
+
+    if (!teams || teams.length === 0) {
+      console.warn("⚠️ No hay equipos disponibles, navegando a gestión de equipos");
+      navigate(`/tournament/${id}/teams-manage`);
+      return;
+    }
+
+    // Buscar equipo (case insensitive y trim)
+    const team = teams.find(t => 
+      t.name.toLowerCase().trim() === teamName.toLowerCase().trim()
+    );
+    
+    if (team && team.id) {
+      console.log(`🎯 Navegando a equipo ID: ${team.id} (${team.name})`);
+      navigate(`/team/${team.id}`);
+    } else {
+      console.warn(`❌ No se encontró ID para: "${teamName}"`);
+      console.warn(`Equipos en la lista:`, teams.map(t => t.name));
+      
+      // Mostrar mensaje al usuario y navegar a gestión de equipos
+      alert(`No se pudo encontrar la página del equipo "${teamName}". Serás redirigido a la gestión de equipos.`);
+      navigate(`/tournament/${id}/teams-manage`);
+    }
   };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen text-gray-600">
-        Cargando datos del torneo...
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Cargando datos del torneo...</p>
+        </div>
       </div>
     );
   }
@@ -130,7 +188,12 @@ export default function GestionDetallesTorneo() {
   if (!tournament) {
     return (
       <div className="flex justify-center items-center h-screen text-red-600">
-        No se encontró el torneo
+        <div className="text-center">
+          <h3 className="text-lg font-medium mb-2">No se encontró el torneo</h3>
+          <Button onClick={() => navigate(-1)}>
+            Volver
+          </Button>
+        </div>
       </div>
     );
   }
@@ -142,55 +205,54 @@ export default function GestionDetallesTorneo() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-{/* 🔹 Header */}
-<div className="bg-white border-b border-gray-200 shadow-sm">
-  <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-    <div className="flex items-center justify-between">
-      {/* 🔸 Izquierda: título y subtítulo */}
-      <div className="flex items-center space-x-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate(-1)}
-          className="text-gray-600 hover:text-gray-900"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Volver
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            {tournament.name}
-          </h1>
-          <p className="text-sm text-gray-500">Gestión completa del torneo</p>
+      {/* 🔹 Header */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
+            {/* 🔸 Izquierda: título y subtítulo */}
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(-1)}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Volver
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {tournament.name}
+                </h1>
+                <p className="text-sm text-gray-500">Gestión completa del torneo</p>
+              </div>
+            </div>
+
+            {/* 🔸 Derecha: botones */}
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => navigate("/dashboard-organizador")}
+                variant="outline"
+                className="text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-900 shadow-lg"
+                size="lg"
+              >
+                <ArrowLeft className="w-5 h-5 mr-2" />
+                Volver al panel
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-primary border-primary hover:bg-primary hover:text-white transition"
+                onClick={() => navigate(`/tournament/${id}/teams-manage`)}
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Ver equipos del torneo
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* 🔸 Derecha: botón alineado */}
-
-      <Button
-  onClick={() => navigate("/dashboard-organizador")}
-  variant="outline"
-  className="text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-900 shadow-lg"
-  size="lg"
->
-  <ArrowLeft className="w-5 h-5 mr-2" />
-  Volver al panel
-</Button>
-
-
-      <Button
-        variant="outline"
-        size="sm"
-        className="text-primary border-primary hover:bg-primary hover:text-white transition"
-        onClick={() => navigate(`/tournament/${id}/teams-manage`)}
-      >
-        <Users className="w-4 h-4 mr-2" />
-        Ver equipos del torneo
-      </Button>
-    </div>
-  </div>
-</div>
-
 
       {/* 🔹 Contenido */}
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-8">
@@ -275,7 +337,7 @@ export default function GestionDetallesTorneo() {
           <CardHeader>
             <CardTitle className="flex items-center text-xl font-semibold text-gray-900">
               <Target className="w-5 h-5 mr-2 text-primary" />
-              Tabla de Posiciones
+              Tabla de Posiciones ({standings.length} equipos)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -312,7 +374,8 @@ export default function GestionDetallesTorneo() {
                       <TableCell className="font-medium">
                         <button
                           onClick={() => handleTeamClick(team.teamName)}
-                          className="text-primary hover:underline"
+                          className="text-primary hover:underline hover:text-primary/80 transition-colors"
+                          title={`Ver detalles de ${team.teamName}`}
                         >
                           {team.teamName}
                         </button>
@@ -369,19 +432,23 @@ export default function GestionDetallesTorneo() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {topScorers.map((p, idx) => (
-                <div
-                  key={idx}
-                  className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
-                >
-                  <span className="font-medium text-gray-900">
-                    {p.playerName} ({p.team})
-                  </span>
-                  <span className="font-semibold text-primary">
-                    ⚽ {p.goalScore}
-                  </span>
-                </div>
-              ))}
+              {topScorers.length > 0 ? (
+                topScorers.map((p, idx) => (
+                  <div
+                    key={idx}
+                    className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
+                  >
+                    <span className="font-medium text-gray-900">
+                      {p.playerName} ({p.team})
+                    </span>
+                    <span className="font-semibold text-primary">
+                      ⚽ {p.goalScore}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-center py-4">No hay datos de goleadores</p>
+              )}
             </CardContent>
           </Card>
 
@@ -394,19 +461,23 @@ export default function GestionDetallesTorneo() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {topYellows.map((p, idx) => (
-                <div
-                  key={idx}
-                  className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
-                >
-                  <span className="font-medium text-gray-900">
-                    {p.playerName} ({p.team})
-                  </span>
-                  <span className="font-semibold text-yellow-600">
-                    🟨 {p.yellowCards}
-                  </span>
-                </div>
-              ))}
+              {topYellows.length > 0 ? (
+                topYellows.map((p, idx) => (
+                  <div
+                    key={idx}
+                    className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
+                  >
+                    <span className="font-medium text-gray-900">
+                      {p.playerName} ({p.team})
+                    </span>
+                    <span className="font-semibold text-yellow-600">
+                      🟨 {p.yellowCards}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-center py-4">No hay datos de tarjetas amarillas</p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -422,29 +493,33 @@ export default function GestionDetallesTorneo() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {recentMatches.map((match, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-900">
-                        {match.homeTeam}
-                      </span>
-                      <div className="mx-4 text-lg font-bold text-primary">
-                        {match.goalsHomeTeam} - {match.goalsAwayTeam}
+              {recentMatches.length > 0 ? (
+                recentMatches.map((match, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-gray-900">
+                          {match.homeTeam}
+                        </span>
+                        <div className="mx-4 text-lg font-bold text-primary">
+                          {match.goalsHomeTeam} - {match.goalsAwayTeam}
+                        </div>
+                        <span className="font-medium text-gray-900">
+                          {match.awayTeam}
+                        </span>
                       </div>
-                      <span className="font-medium text-gray-900">
-                        {match.awayTeam}
-                      </span>
+                      <p className="text-center text-sm text-gray-500 mt-1">
+                        {formatShortDate(match.matchDateTime)}
+                      </p>
                     </div>
-                    <p className="text-center text-sm text-gray-500 mt-1">
-                      {formatShortDate(match.matchDateTime)}
-                    </p>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-gray-500 text-center py-4">No hay partidos recientes</p>
+              )}
             </CardContent>
           </Card>
 
@@ -457,29 +532,33 @@ export default function GestionDetallesTorneo() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {upcomingMatches.map((match, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-900">
-                        {match.homeTeam}
-                      </span>
-                      <div className="mx-4 text-lg font-bold text-gray-400">
-                        VS
+              {upcomingMatches.length > 0 ? (
+                upcomingMatches.map((match, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-gray-900">
+                          {match.homeTeam}
+                        </span>
+                        <div className="mx-4 text-lg font-bold text-gray-400">
+                          VS
+                        </div>
+                        <span className="font-medium text-gray-900">
+                          {match.awayTeam}
+                        </span>
                       </div>
-                      <span className="font-medium text-gray-900">
-                        {match.awayTeam}
-                      </span>
+                      <p className="text-center text-sm text-gray-500 mt-1">
+                        {formatShortDate(match.matchDateTime)} — {match.stadium}
+                      </p>
                     </div>
-                    <p className="text-center text-sm text-gray-500 mt-1">
-                      {formatShortDate(match.matchDateTime)} — {match.stadium}
-                    </p>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-gray-500 text-center py-4">No hay próximos partidos</p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -506,7 +585,7 @@ export default function GestionDetallesTorneo() {
 
               <Button
                 className="h-16 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
-                onClick={() => navigate("/generacion-automatica")}
+                onClick={() => navigate(`/tournament/${id}/generate-matches`)}
               >
                 <Trophy className="w-5 h-5 mr-2" />
                 <div className="text-left">
@@ -519,7 +598,7 @@ export default function GestionDetallesTorneo() {
 
               <Button
                 className="h-16 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
-                onClick={() => navigate(`/proximos-partidos/${id}`)}
+                onClick={() => navigate(`/tournament/${id}/upcoming-matches`)}
               >
                 <Target className="w-5 h-5 mr-2" />
                 <div className="text-left">

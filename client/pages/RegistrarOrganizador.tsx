@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,10 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { organizerService } from "@/services/organizerService";
+
+useEffect(() => {
+  document.title = `Registrar Organizador`;
+}, );
 
 export default function RegistrarOrganizador() {
   const [fullName, setFullName] = useState("");

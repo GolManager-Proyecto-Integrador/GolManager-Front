@@ -56,7 +56,7 @@ import {
   getTournamentDetails
 } from '@/services/upcomingMatchService';
 
-// Interfaces actualizadas según la API
+// Interfaces según la API
 interface UpcomingMatch {
   matchId: number;
   homeTeam: string;
@@ -98,6 +98,10 @@ interface ScheduleFormData {
   stadium: string;
   refereeId: number;
 }
+
+useEffect(() => {
+  document.title = `Próximos Partidos`;
+}, );
 
 const ITEMS_PER_PAGE = 5;
 
@@ -332,7 +336,7 @@ useEffect(() => {
       return;
     }
 
-    // Navegar a la nueva ruta - CAMBIADO: tournamentId → idTournament
+    // Navegar a la nueva ruta
     navigate(`/tournament/${idTournament}/match/${match.matchId}`);
   };
 
@@ -357,7 +361,7 @@ useEffect(() => {
       date: matchDate.toISOString().split('T')[0],
       time: matchDate.toTimeString().slice(0, 5),
       stadium: match.stadium,
-      refereeId: refereeId // Ahora usa el ID correcto del árbitro
+      refereeId: refereeId 
     });
   };
 
@@ -367,7 +371,7 @@ useEffect(() => {
   };
 
   const handleSaveEdit = async () => {
-    if (editingMatch && idTournament) { // CAMBIADO: tournamentId → idTournament
+    if (editingMatch && idTournament) { 
       try {
         const matchDateTime = new Date(`${editFormData.date}T${editFormData.time}`);
         
@@ -378,7 +382,7 @@ useEffect(() => {
           refereeId: editFormData.refereeId
         };
 
-        await updateMatch(parseInt(idTournament), updateData); // CAMBIADO
+        await updateMatch(parseInt(idTournament), updateData); 
         
         // Actualizar estado local - también actualizar el nombre del árbitro
         const updatedRefereeName = referees.find(ref => ref.id === editFormData.refereeId)?.name || editingMatch.refereeName;
@@ -407,9 +411,9 @@ useEffect(() => {
   };
 
   const handleConfirmDelete = async () => {
-    if (deleteConfirmMatch && idTournament) { // CAMBIADO: tournamentId → idTournament
+    if (deleteConfirmMatch && idTournament) { 
       try {
-        await deleteMatch(parseInt(idTournament), deleteConfirmMatch.matchId); // CAMBIADO
+        await deleteMatch(parseInt(idTournament), deleteConfirmMatch.matchId); 
         
         setMatches(matches.filter(m => m.matchId !== deleteConfirmMatch.matchId));
         setDeleteConfirmMatch(null);
@@ -462,7 +466,7 @@ useEffect(() => {
   };
 
   const handleSaveSchedule = async () => {
-    if (idTournament && scheduleFormData.homeTeamId && scheduleFormData.awayTeamId && // CAMBIADO: tournamentId → idTournament
+    if (idTournament && scheduleFormData.homeTeamId && scheduleFormData.awayTeamId && 
         scheduleFormData.date && scheduleFormData.time && scheduleFormData.stadium && 
         scheduleFormData.refereeId) {
       try {
@@ -471,13 +475,13 @@ useEffect(() => {
         const matchData = {
           homeTeamId: scheduleFormData.homeTeamId,
           awayTeamId: scheduleFormData.awayTeamId,
-          tournamentId: parseInt(idTournament), // CAMBIADO
+          tournamentId: parseInt(idTournament), 
           stadiumName: scheduleFormData.stadium,
           referee: scheduleFormData.refereeId,
           matchDate: matchDateTime.toISOString()
         };
 
-        const newMatch = await createMatch(parseInt(idTournament), matchData); // CAMBIADO
+        const newMatch = await createMatch(parseInt(idTournament), matchData); 
         
         // Obtener el nombre del árbitro para mostrarlo en la lista
         const refereeName = referees.find(ref => ref.id === scheduleFormData.refereeId)?.name || '';

@@ -4,8 +4,8 @@ import axios from "axios";
 import { getToken } from "./authService";
 
 // ==================== 🔹 URL base ====================
-const API_URL_TOURNAMENTS = "http://localhost:8085/api/tournaments";
-const API_URL_PLAYERS = "http://localhost:8085/api/players";
+const API_URL_TOURNAMENTS = "/api/tournaments";
+const API_URL_PLAYERS = "/api/players";
 
 // ==================== 🔹 Tipos ====================
 export interface TournamentRules {

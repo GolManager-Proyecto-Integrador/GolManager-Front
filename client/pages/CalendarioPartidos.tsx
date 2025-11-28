@@ -104,7 +104,7 @@ export default function Calendar() {
         const refereesData = await CalendarioService.getReferees();
         setReferees(refereesData);
 
-        // Cargar partidos (código existente)
+        // Cargar partidos
         const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
         const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
@@ -159,6 +159,10 @@ export default function Calendar() {
     fetchInitialData();
   }, [currentDate, toast]);
 
+  useEffect(() => {
+    document.title = `Calendario de Partidos`;
+  }, );
+
   // Función para cargar equipos cuando se selecciona un torneo
   const handleTournamentChange = async (tournamentId: string) => {
     setNewMatch({ ...newMatch, tournament: tournamentId, homeTeam: '', awayTeam: '' });
@@ -186,7 +190,6 @@ export default function Calendar() {
   // Obtener equipos disponibles para el torneo seleccionado
   const selectedTournamentTeams = tournaments.find(t => String(t.id) === newMatch.tournament)?.teams || [];
 
-  // Resto del código del componente permanece igual...
   const getTeamsFromMatches = (tournamentId: string) => {
     if (tournamentId === 'all') return [];
 

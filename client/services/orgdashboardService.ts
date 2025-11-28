@@ -4,7 +4,7 @@ import axios from "axios";
 import { getToken } from "./authService";
 
 // Ajustar al puerto y ruta de backend
-const API_URL = "http://localhost:8085/api/dashboard";
+const API_URL = "/api/dashboard";
 
 export interface DashboardStats {
   totalTournaments: number;

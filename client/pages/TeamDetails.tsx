@@ -24,13 +24,17 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft, Edit3, Users, MapPin, User, Home } from "lucide-react";
 
-// 🔹 Importar servicio
+// Importar servicio
 import {
   getTeamDetails,
   updateTeamDetails,
   Team,
   Player,
 } from "@/services/teamDetailsService";
+
+useEffect(() => {
+  document.title = `Detalles del Equipo`;
+}, );
 
 const roles = ["Titular", "Suplente"];
 const statuses = ["Activo", "Suspendido", "Lesionado"];
@@ -49,7 +53,7 @@ const getStatusColor = (status?: Player["status"]) => {
 };
 
 export default function TeamDetails() {
-  // 👇 Ahora obtenemos ambos ids desde la URL
+  // Ahora obtenemos ambos ids desde la URL
   const { idTournament, teamId } = useParams<{
     idTournament: string;
     teamId: string;
@@ -61,7 +65,7 @@ export default function TeamDetails() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 🔹 Cargar datos del backend
+  // Cargar datos del backend
   useEffect(() => {
     const fetchTeam = async () => {
       try {

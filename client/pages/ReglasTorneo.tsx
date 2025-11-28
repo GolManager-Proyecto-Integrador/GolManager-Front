@@ -13,6 +13,10 @@ import { Link } from "react-router-dom";
 
 import tournamentService, { TournamentData } from "@/services/gesdettournamentService";
 
+useEffect(() => {
+  document.title = `Reglas del Torneo`;
+}, );
+
 export default function ReglasTorneo() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -27,7 +31,7 @@ export default function ReglasTorneo() {
     yellowCardsSuspension: 3,
   });
 
-  // 🔹 Cargar datos del torneo y jugadores suspendidos
+  // Cargar datos del torneo y jugadores suspendidos
   useEffect(() => {
     const fetchData = async () => {
       try {

@@ -3,7 +3,6 @@ import { getToken } from "./authService";
 
 const API_BASE_URL = '/api';
 
-// --- Interfaces Actualizadas ---
 
 export interface Match {
   tournamentId: number;
@@ -66,7 +65,6 @@ export interface RefereesResponse {
   referees: Referee[];
 }
 
-// --- Service Completamente Corregido ---
 
 export const CalendarioService = {
   // Obtener partidos de un rango de fechas
@@ -101,7 +99,7 @@ export const CalendarioService = {
     }
   },
 
-  // Obtener todos los torneos - MEJORADO con manejo de diferentes estructuras
+  // Obtener todos los torneos - con manejo de diferentes estructuras
   getTournaments: async (): Promise<Tournament[]> => {
     try {
       const token = getToken();
@@ -133,7 +131,7 @@ export const CalendarioService = {
     }
   },
 
-  // Obtener equipos por torneo - MEJORADO
+  // Obtener equipos por torneo
   getTeamsByTournament: async (tournamentId: number): Promise<Team[]> => {
     try {
       const token = getToken();
@@ -161,7 +159,7 @@ export const CalendarioService = {
     }
   },
 
-  // Obtener árbitros - MEJORADO
+  // Obtener árbitros
   getReferees: async (): Promise<Referee[]> => {
     try {
       const token = getToken();
