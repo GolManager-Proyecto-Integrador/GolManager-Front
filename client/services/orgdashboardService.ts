@@ -35,10 +35,12 @@ apiClient.interceptors.request.use(
 );
 
 export interface DashboardStats {
-  totalTournaments: number;
-  activeTournaments: number;
-  upcomingMatches: number;
-  registeredTeams: number;
+  numTournaments: number;
+  numTournamentsCreateThisMonth: number;
+  numTournamentsInProgress: number;
+  numMatchesThisWeek: number;
+  numTeamsRegistered: number;
+  userName: string;
 }
 
 export interface OrganizerInfo {
@@ -57,7 +59,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     
     try {
       // Endpoint principal
-      response = await apiClient.get("/dashboard/stats");
+      response = await apiClient.get("/organizer/dashboard");
       console.log('✅ Estadísticas obtenidas del endpoint principal');
     } catch (error: any) {
       if (error.response?.status === 401 || error.response?.status === 404) {
@@ -75,10 +77,12 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     if (!response.data || Object.keys(response.data).length === 0) {
       console.log('📊 No hay datos reales, usando datos de ejemplo');
       return {
-        totalTournaments: 5,
-        activeTournaments: 2,
-        upcomingMatches: 8,
-        registeredTeams: 24
+        numTournaments: 5,
+        numTournamentsCreateThisMonth: 2,
+        numTournamentsInProgress: 2,
+        numMatchesThisWeek: 8,
+        numTeamsRegistered: 24,
+        userName: "Organizador"
       };
     }
 
@@ -91,10 +95,12 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     if (error.response?.status === 401 || error.response?.status === 403) {
       console.log('🚫 Sin permisos para dashboard, usando datos de ejemplo');
       return {
-        totalTournaments: 5,
-        activeTournaments: 2,
-        upcomingMatches: 8,
-        registeredTeams: 24
+        numTournaments: 5,
+        numTournamentsCreateThisMonth: 2,
+        numTournamentsInProgress: 2,
+        numMatchesThisWeek: 8,
+        numTeamsRegistered: 24,
+        userName: "Organizador"
       };
     }
     
