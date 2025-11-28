@@ -140,27 +140,38 @@ export interface Team {
 
 export const positions = [
   { value: "PO", label: "Portero" },
-  { value: "DF", label: "Defensa" },
+  { value: "DFC", label: "Defensa" },
   { value: "MC", label: "Mediocampista" },
-  { value: "DL", label: "Delantero" },
+  { value: "DC", label: "Delantero" },
 ];
 
 // =======================
 // 🔹 MAPEO DE CATEGORÍAS
 // =======================
 const categoryMapping: { [key: string]: string } = {
+  'sub-13': 'SUB13',
+  'sub-14': 'SUB14',
   'sub-15': 'SUB15',
-  'sub-17': 'SUB17', 
+  'sub-16': 'SUB16',
+  'sub-17': 'SUB17',
+  'sub-19': 'SUB19',
   'sub-20': 'SUB20',
-  'libre': 'LIBRE'
+  'sub-21': 'SUB21',
+  'professional': 'PROFESSIONAL',
+  'veteran': 'VETERAN'
 };
 
 const reverseCategoryMapping: { [key: string]: string } = {
-  'SUB13': 'sub-15',
+  'SUB13': 'sub-13',
+  'SUB14': 'sub-14',
   'SUB15': 'sub-15',
+  'SUB16': 'sub-16',
   'SUB17': 'sub-17',
-  'SUB20': 'sub-20', 
-  'LIBRE': 'libre'
+  'SUB19': 'sub-19',
+  'SUB20': 'sub-20',
+  'SUB21': 'sub-21',
+  'PROFESSIONAL': 'professional',
+  'VETERAN': 'veteran'
 };
 
 // =======================
@@ -237,7 +248,7 @@ class TeamService {
         // Si ya existe un equipo con este ID, no lo agregamos
         if (!uniqueTeamsMap.has(teamId)) {
           const backendCategory = backendTeam.teamCategory || backendTeam.category;
-          const frontendCategory = reverseCategoryMapping[backendCategory] || 'libre';
+          const frontendCategory = reverseCategoryMapping[backendCategory] || 'professional';
 
           const mappedTeam = {
             id: teamId,
@@ -249,7 +260,7 @@ class TeamService {
             players: Array.isArray(backendTeam.teamPlayers) ? backendTeam.teamPlayers.map((p: any) => ({
               id: p.id || Date.now() + Math.random(),
               name: p.name || 'Jugador sin nombre',
-              position: p.playerPosition || p.position || 'DF',
+              position: p.playerPosition || p.position || 'DFC',
               dorsalNumber: p.shirtNumber || p.dorsalNumber || 0,
               age: p.age || 18
             })) : []
@@ -284,7 +295,7 @@ class TeamService {
       console.log('📦 Respuesta de equipo individual:', backendTeam);
 
       const backendCategory = backendTeam.teamCategory || backendTeam.category;
-      const frontendCategory = reverseCategoryMapping[backendCategory] || 'libre';
+      const frontendCategory = reverseCategoryMapping[backendCategory] || 'professional';
 
       const result = {
         id: backendTeam.teamId || backendTeam.id || idTeam,
@@ -349,6 +360,7 @@ class TeamService {
 
   // UPDATE team - CON DEBUG COMPLETO PARA IDENTIFICAR 401
   async updateTeam(idTournament: number, idTeam: number, data: UpdateTeamRequest) {
+    console.log(this.getTeams(idTournament))
     try {
       console.group(`✏️ UPDATE Team - Tournament ${idTournament}, Team ${idTeam}`);
       

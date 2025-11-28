@@ -135,7 +135,7 @@ export default function Calendar() {
 
         // Convert API matches to CalendarMatch format
         const convertedMatches: CalendarMatch[] = fetchedMatches.map(match => {
-          const dateTime = new Date(match.matchDateTIme);
+          const dateTime = new Date(match.matchDateTime);
           const date = dateTime.toISOString().split('T')[0];
           const time = dateTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
@@ -520,7 +520,7 @@ export default function Calendar() {
         const fetchedMatches = await CalendarioService.getMatches(initialDateStr, finishDateStr);
 
         const convertedMatches: CalendarMatch[] = fetchedMatches.map(match => {
-          const dateTime = new Date(match.matchDateTIme);
+          const dateTime = new Date(match.matchDateTime);
           const date = dateTime.toISOString().split('T')[0];
           const time = dateTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 

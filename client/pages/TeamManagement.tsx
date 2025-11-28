@@ -30,10 +30,15 @@ interface NewTeamData {
 }
 
 const categories = [
+  { value: 'sub-13', label: 'Sub-13' },
+  { value: 'sub-14', label: 'Sub-14' },
   { value: 'sub-15', label: 'Sub-15' },
   { value: 'sub-17', label: 'Sub-17' },
+  { value: 'sub-19', label: 'Sub-19' },
   { value: 'sub-20', label: 'Sub-20' },
-  { value: 'libre', label: 'Libre' }
+  { value: 'sub-21', label: 'Sub-21' },
+  { value: 'professional', label: 'Profesional' },
+  { value: 'veteran', label: 'Veterano' }
 ];
 
 const ITEMS_PER_PAGE = 6;
