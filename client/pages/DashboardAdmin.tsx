@@ -37,7 +37,7 @@ export default function AdminDashboard() {
         setLoading(true);
         setError("");
 
-        // ✅ ELIMINAR: No necesitas pasar el token manualmente
+        // pasar el token manualmente
         // const token = localStorage.getItem("token");
         // if (!token) {
         //   setError("⚠️ No se encontró el token de autenticación");
@@ -45,7 +45,7 @@ export default function AdminDashboard() {
         //   return;
         // }
 
-        // ✅ CORRECTO: Llamar sin parámetros
+        // ✅ Llamar sin parámetros
         const data = await dashboardService.getDashboardData();
         setDashboardData(data);
         
@@ -107,12 +107,6 @@ export default function AdminDashboard() {
       label: "Organizadores",
       path: "/organizers",
       icon: Users,
-    },
-    {
-      id: "reports",
-      label: "Reportes",
-      path: "/reporte-sistema",
-      icon: FileText,
     },
   ];
 
