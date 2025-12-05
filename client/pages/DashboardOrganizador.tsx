@@ -57,10 +57,12 @@ export default function Dashboard() {
         
         // Datos de ejemplo en caso de error
         setStats({
-          totalTournaments: 5,
-          activeTournaments: 2,
-          upcomingMatches: 8,
-          registeredTeams: 24
+          numTournaments: 5,
+          numTournamentsCreateThisMonth: 2,
+          numTournamentsInProgress: 2,
+          numMatchesThisWeek: 8,
+          numTeamsRegistered: 24,
+          userName: "Organizador"
         });
         setOrganizer({
           id: '1',
@@ -207,14 +209,12 @@ export default function Dashboard() {
                 <div className="text-right">
                   <p className="text-sm text-gray-500">Organizador</p>
                   <p className="font-semibold text-gray-900">
-                    {organizer?.name ?? "Organizador"}
+                    {stats?.userName ?? "Organizador"}
                   </p>
                 </div>
                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center">
                   <span className="text-white font-semibold">
-                    {organizer
-                      ? organizer.name.split(" ").map((n) => n[0]).join("").substring(0, 2)
-                      : "O"}
+                      {stats?.userName ? stats.userName.substring(0, 2).toUpperCase() : "OR"}
                   </span>
                 </div>
               </div>
@@ -276,11 +276,13 @@ export default function Dashboard() {
                 <CardContent className="pt-0">
                   <div className="space-y-2">
                     <p className="text-3xl font-bold text-gray-900">
-                      {stats?.totalTournaments ?? 0}
+                      {stats?.numTournaments ?? 0}
                     </p>
                     <div className="flex items-center gap-1 text-sm">
                       <TrendingUp className="w-4 h-4 text-green-500" />
-                      <span className="text-green-600 font-medium">+2 este mes</span>
+                      <span className="text-green-600 font-medium">
+                      +{stats?.numTournamentsCreateThisMonth ?? 0} este mes
+                      </span>
                     </div>
                   </div>
                 </CardContent>
@@ -302,7 +304,7 @@ export default function Dashboard() {
                 <CardContent className="pt-0">
                   <div className="space-y-2">
                     <p className="text-3xl font-bold text-gray-900">
-                      {stats?.activeTournaments ?? 0}
+                      {stats?.numTournamentsInProgress ?? 0}
                     </p>
                     <p className="text-sm text-gray-600">En curso actualmente</p>
                   </div>
@@ -323,7 +325,7 @@ export default function Dashboard() {
                 <CardContent className="pt-0">
                   <div className="space-y-2">
                     <p className="text-3xl font-bold text-gray-900">
-                      {stats?.upcomingMatches ?? 0}
+                      {stats?.numMatchesThisWeek ?? 0}
                     </p>
                     <p className="text-sm text-gray-600">Esta semana</p>
                   </div>
@@ -344,7 +346,7 @@ export default function Dashboard() {
                 <CardContent className="pt-0">
                   <div className="space-y-2">
                     <p className="text-3xl font-bold text-gray-900">
-                      {stats?.registeredTeams ?? 0}
+                      {stats?.numTeamsRegistered ?? 0}
                     </p>
                     <div className="flex items-center gap-1 text-sm">
                       <TrendingUp className="w-4 h-4 text-green-500" />

@@ -1,107 +1,144 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ArrowLeft, Edit3, Users, MapPin, User, Save } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ArrowLeft, Plus, Users, UserCheck, Trash2, Save, X, LayoutDashboard } from 'lucide-react';
 
-// 🔹 Importar servicio actualizado
-import {
-  getTeamDetails,
-  updateTeamDetails,
-  updatePlayerDetails,
-  Team,
-  Player,
-} from "@/services/teamDetailsService";
+import teamService, { Team, Player, positions, NewTeamData } from '@/services/teamService';
 
-const roles = ["Titular", "Suplente"];
-const statuses = ["Activo", "Suspendido", "Lesionado"];
+// 🔹 Categorías locales
+const categories = [
+  { value: 'sub-15', label: 'Sub-15' },
+  { value: 'sub-17', label: 'Sub-17' },
+  { value: 'sub-20', label: 'Sub-20' },
+  { value: 'libre', label: 'Libre' }
+];
 
-const getStatusColor = (status?: Player["status"]) => {
-  switch (status) {
-    case "Activo":
-      return "text-green-700 bg-green-50 border-green-200";
-    case "Suspendido":
-      return "text-red-700 bg-red-50 border-red-200";
-    case "Lesionado":
-      return "text-yellow-700 bg-yellow-50 border-yellow-200";
-    default:
-      return "text-gray-700 bg-gray-50 border-gray-200";
-  }
-};
-
-export default function TeamDetails() {
-  const { idTournament, teamId } = useParams<{
-    idTournament: string;
-    teamId: string;
-  }>();
-
+export default function TeamManagement() {
   const navigate = useNavigate();
-
-  const [team, setTeam] = useState<Team | null>(null);
-  const [players, setPlayers] = useState<Player[]>([]);
+  const { idTournament } = useParams<{ idTournament: string }>(); // 🔹 Obtener idTournament de la URL
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<string>("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
+  
+  const [newTeam, setNewTeam] = useState<NewTeamData>({
+    name: '',
+    coach: '',
+    category: '',
+    mainField: '',
+    secondaryField: '',
+    players: []
+  });
 
-  // 🔹 Cargar datos del backend
-  useEffect(() => {
-    const fetchTeam = async () => {
-      try {
-        if (!idTournament || !teamId) return;
-        const data = await getTeamDetails(idTournament, teamId);
-        setTeam(data);
-        setPlayers(data.players || []);
-      } catch (error) {
-        console.error("Error al cargar los detalles del equipo:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTeam();
-  }, [idTournament, teamId]);
+  const [newPlayer, setNewPlayer] = useState({
+    name: '',
+    position: '',
+    dorsalNumber: ''
+  });
 
-  // 🔹 Actualizar rol del jugador - guarda inmediatamente
-  const handlePlayerRoleChange = async (playerId: string, newRole: string) => {
+  // 🔹 Cargar equipos desde el backend - CORREGIDO: agregar idTournament
+  const fetchTeams = async () => {
+    if (!idTournament) {
+      console.error("No se encontró el ID del torneo");
+      return;
+    }
+
     try {
-      const player = players.find(p => p.id === playerId);
-      if (!player || !idTournament || !teamId) return;
-
-      const updatedPlayer = { ...player, role: newRole as "Titular" | "Suplente" };
-      
-      // ✅ Guardar inmediatamente en el backend
-      const savedPlayer = await updatePlayerDetails(idTournament, teamId, updatedPlayer);
-      
-      // ✅ Actualizar estado local con la respuesta del backend
-      setPlayers(prev =>
-        prev.map(p => p.id === playerId ? savedPlayer : p)
-      );
-      
-      setSaveMessage("Rol actualizado correctamente");
-      setTimeout(() => setSaveMessage(""), 3000);
+      setLoading(true);
+      const data = await teamService.getTeams(idTournament); // 🔹 Pasar idTournament
+      setTeams(data);
     } catch (error) {
-      console.error("Error al actualizar rol del jugador:", error);
-      setSaveMessage("Error al actualizar el rol");
-      setTimeout(() => setSaveMessage(""), 3000);
+      console.error("Error cargando equipos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTeams();
+  }, [idTournament]); // 🔹 Agregar dependencia
+
+  const handleTeamClick = (teamId: string) => {
+    navigate(`/tournament/${idTournament}/team/${teamId}`);
+  };
+
+  const handleInputChange = (field: keyof NewTeamData, value: string) => {
+    setNewTeam(prev => ({ ...prev, [field]: value }));
+    validateForm();
+  };
+
+  const handleAddPlayer = () => {
+    if (newPlayer.name && newPlayer.position && newPlayer.dorsalNumber) {
+      const dorsalNum = parseInt(newPlayer.dorsalNumber);
+      const dorsalExists = newTeam.players.some(p => p.dorsalNumber === dorsalNum);
+
+      if (dorsalExists) {
+        setErrors(['El número de dorsal ya está en uso']);
+        return;
+      }
+
+      const player: Player = {
+        id: Date.now().toString(),
+        name: newPlayer.name,
+        position: newPlayer.position,
+        dorsalNumber: dorsalNum,
+        age: 0 // 🔹 Valor por defecto requerido
+      };
+
+      setNewTeam(prev => ({
+        ...prev,
+        players: [...prev.players, player]
+      }));
+
+      setNewPlayer({ name: '', position: '', dorsalNumber: '' });
+      validateForm();
+    }
+  };
+
+  const handleRemovePlayer = (playerId: string) => {
+    setNewTeam(prev => ({
+      ...prev,
+      players: prev.players.filter(p => p.id !== playerId)
+    }));
+    validateForm();
+  };
+
+  const validateForm = () => {
+    const newErrors: string[] = [];
+    if (!newTeam.name) newErrors.push('El nombre del equipo es obligatorio');
+    if (!newTeam.coach) newErrors.push('El director técnico es obligatorio');
+    if (!newTeam.category) newErrors.push('La categoría es obligatoria');
+    if (!newTeam.mainField) newErrors.push('La cancha principal es obligatoria');
+    if (!newTeam.secondaryField) newErrors.push('La cancha secundaria es obligatoria');
+    if (newTeam.players.length < 11) newErrors.push('Debe haber mínimo 11 jugadores');
+    setErrors(newErrors);
+    return newErrors.length === 0;
+  };
+
+  // 🔹 Guardar en backend - CORREGIDO: agregar idTournament y team
+  const handleSaveTeam = async () => {
+    if (!idTournament) {
+      setErrors(['No se encontró el ID del torneo']);
+      return;
+    }
+
+    if (validateForm()) {
+      try {
+        await teamService.createTeam(idTournament, newTeam); // 🔹 Pasar ambos parámetros
+        fetchTeams(); // refrescar lista
+        resetForm();
+        setIsModalOpen(false);
+      } catch (error) {
+        console.error("Error guardando equipo:", error);
+        setErrors(['Error al guardar el equipo. Intente nuevamente.']);
+      }
     }
   };
 
@@ -152,36 +189,13 @@ export default function TeamDetails() {
     }
   };
 
-  const handleBackToTournament = () => {
-    if (!idTournament) return;
-    navigate(`/tournament/${idTournament}/teams-manage`);
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-gray-600">Cargando equipo...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!team) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">No se encontró el equipo</h2>
-          <Button onClick={handleBackToTournament}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Volver a equipos
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const isFormValid =
+    newTeam.name.trim() !== "" &&
+    newTeam.coach.trim() !== "" &&
+    newTeam.category.trim() !== "" &&
+    newTeam.mainField.trim() !== "" &&
+    newTeam.secondaryField.trim() !== "" &&
+    newTeam.players.length >= 11;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -197,14 +211,24 @@ export default function TeamDetails() {
                 className="text-gray-600 hover:text-gray-900"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Volver a equipos
+                Volver
+              </Button>
+              {/* 🔹 BOTÓN VOLVER AL PANEL - AGREGADO */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/dashboard-organizador")}
+                className="text-gray-600 hover:text-gray-900 border-gray-300"
+              >
+                <LayoutDashboard className="w-4 h-4 mr-2" />
+                Volver al panel
               </Button>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">
-                  {team.name}
+                  Gestión de Equipos
                 </h1>
                 <p className="mt-1 text-sm text-gray-500">
-                  Información general y jugadores registrados
+                  Administra y registra los equipos del torneo {idTournament}
                 </p>
               </div>
             </div>
@@ -213,279 +237,226 @@ export default function TeamDetails() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-8">
-        {/* Mensaje de guardado */}
-        {saveMessage && (
-          <div className={`p-4 rounded-lg ${
-            saveMessage.includes("Error") 
-              ? "bg-red-50 text-red-700 border border-red-200" 
-              : "bg-green-50 text-green-700 border border-green-200"
-          }`}>
-            {saveMessage}
-          </div>
-        )}
-
-        {/* Team Information Card */}
-        <Card className="bg-white shadow-lg border-0 rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center text-xl font-semibold text-gray-900">
-              <Users className="w-5 h-5 mr-3 text-primary" />
-              Información del Equipo
-            </CardTitle>
-            <Button
-              onClick={handleEditTeam}
-              disabled={saving}
-              className="bg-primary hover:bg-primary/90"
-            >
-              {saving ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Guardando...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Guardar cambios
-                </>
-              )}
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                <div>
-                  <label className="text-sm font-medium text-gray-500">
-                    Nombre del Equipo
-                  </label>
-                  <p className="mt-1 text-2xl font-bold text-gray-900">
-                    {team.name}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-500">
-                    Director Técnico
-                  </label>
-                  <div className="flex items-center mt-1">
-                    <User className="w-4 h-4 mr-2 text-primary" />
-                    <p className="text-lg font-semibold text-gray-900">
-                      {team.coach}
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-500">
-                    Categoría
-                  </label>
-                  <p className="mt-1 text-lg font-semibold text-gray-900">
-                    {team.category}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div>
-                  <label className="text-sm font-medium text-gray-500">
-                    Cancha Local Principal
-                  </label>
-                  <div className="flex items-center mt-1">
-                    <MapPin className="w-4 h-4 mr-2 text-primary" />
-                    <p className="text-lg font-semibold text-gray-900">
-                      {team.mainField}
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-500">
-                    Cancha Secundaria
-                  </label>
-                  <div className="flex items-center mt-1">
-                    <MapPin className="w-4 h-4 mr-2 text-gray-400" />
-                    <p className="text-lg font-semibold text-gray-900">
-                      {team.secondaryField || "No registrada"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h4 className="text-sm font-medium text-blue-900 mb-2">
-                    Estadísticas del Equipo
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-blue-800">Total Jugadores:</span>
-                      <span className="font-semibold ml-1">
-                        {players.length}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-blue-800">Titulares:</span>
-                      <span className="font-semibold ml-1">
-                        {players.filter(p => p.role === "Titular").length}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-blue-800">Activos:</span>
-                      <span className="font-semibold ml-1">
-                        {players.filter(p => p.status === "Activo").length}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-blue-800">Suspendidos:</span>
-                      <span className="font-semibold ml-1">
-                        {players.filter(p => p.status === "Suspendido").length}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Players Section */}
-        <Card className="bg-white shadow-lg border-0 rounded-xl">
-          <CardHeader>
-            <CardTitle className="flex items-center text-xl font-semibold text-gray-900">
-              <Users className="w-5 h-5 mr-3 text-primary" />
-              Jugadores Registrados ({players.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {players.length === 0 ? (
-              <div className="text-center py-12">
-                <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 text-lg mb-2">No hay jugadores registrados</p>
-                <p className="text-gray-400 text-sm">Los jugadores aparecerán aquí cuando sean agregados al sistema</p>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nombre del Jugador</TableHead>
-                        <TableHead>Posición</TableHead>
-                        <TableHead>Titular/Suplente</TableHead>
-                        <TableHead className="text-center">Dorsal</TableHead>
-                        <TableHead className="text-center">Goles</TableHead>
-                        <TableHead className="text-center">🟨</TableHead>
-                        <TableHead className="text-center">🟥</TableHead>
-                        <TableHead>Estado</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {players.map((player, index) => (
-                        <TableRow
-                          key={player.id}
-                          className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                        >
-                          <TableCell className="font-medium">
-                            {player.name}
-                          </TableCell>
-                          <TableCell>
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                              {player.position}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={player.role}
-                              onValueChange={(value) =>
-                                handlePlayerRoleChange(player.id, value)
-                              }
-                            >
-                              <SelectTrigger className="w-32">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {roles.map((role) => (
-                                  <SelectItem key={role} value={role}>
-                                    {role}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="inline-flex items-center justify-center w-8 h-8 bg-primary text-white rounded-full text-sm font-bold">
-                              {player.dorsalNumber}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="font-semibold text-green-600">
-                              {player.goals ?? 0}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="font-semibold text-yellow-600">
-                              {player.yellowCards ?? 0}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="font-semibold text-red-600">
-                              {player.redCards ?? 0}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={player.status}
-                              onValueChange={(value) =>
-                                handlePlayerStatusChange(player.id, value)
-                              }
-                            >
-                              <SelectTrigger
-                                className={`w-32 ${getStatusColor(player.status)}`}
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {statuses.map((status) => (
-                                  <SelectItem key={status} value={status}>
-                                    {status}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">
-                    Información sobre las actualizaciones
-                  </h4>
-                  <p className="text-sm text-gray-600">
-                    • Los cambios en "Titular/Suplente" y "Estado" se guardan automáticamente<br/>
-                    • Los valores de goles y tarjetas son de solo lectura<br/>
-                    • No es posible agregar o eliminar jugadores en esta vista
-                  </p>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Action Buttons */}
-        <Card className="bg-white shadow-sm border-0 rounded-xl">
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row gap-4 justify-end">
-              <Button
-                variant="outline"
+        
+        {/* Botón registrar */}
+        <div className="flex justify-end">
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                className="bg-primary hover:bg-primary/90 text-white shadow-lg rounded-lg"
                 size="lg"
-                onClick={handleBackToTournament}
-                className="text-gray-600 border-gray-300 hover:bg-gray-50"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Volver al torneo
+                <Plus className="w-5 h-5 mr-2" />
+                Registrar nuevo equipo
               </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </DialogTrigger>
+            
+            {/* Modal Crear Equipo */}
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-semibold text-gray-900">
+                  Registrar Nuevo Equipo
+                </DialogTitle>
+                <DialogDescription>
+                  Complete todos los campos obligatorios para registrar el equipo
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* Errores */}
+              {errors.length > 0 && (
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertDescription>
+                    <ul className="text-red-600 text-sm space-y-1">
+                      {errors.map((error, index) => (
+                        <li key={index}>• {error}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Formulario equipo */}
+              <div className="space-y-6 py-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="teamName">Nombre del Equipo *</Label>
+                    <Input
+                      id="teamName"
+                      value={newTeam.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      placeholder="Ej: Real Madrid CF"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="coach">Director Técnico *</Label>
+                    <Input
+                      id="coach"
+                      value={newTeam.coach}
+                      onChange={(e) => handleInputChange('coach', e.target.value)}
+                      placeholder="Ej: Carlo Ancelotti"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Categoría *</Label>
+                    <Select value={newTeam.category} onValueChange={(value) => handleInputChange('category', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar categoría" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map(c => (
+                          <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="mainField">Cancha Principal *</Label>
+                    <Input
+                      id="mainField"
+                      value={newTeam.mainField}
+                      onChange={(e) => handleInputChange('mainField', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="secondaryField">Cancha Secundaria *</Label>
+                    <Input
+                      id="secondaryField"
+                      value={newTeam.secondaryField}
+                      onChange={(e) => handleInputChange('secondaryField', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Jugadores */}
+                <div className="space-y-4">
+                  <Label className="text-lg font-semibold">Jugadores ({newTeam.players.length}/11 mínimo)</Label>
+                  
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm font-medium">Agregar Jugador</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                          <Label>Nombre *</Label>
+                          <Input
+                            value={newPlayer.name}
+                            onChange={(e) => setNewPlayer(prev => ({ ...prev, name: e.target.value }))}
+                          />
+                        </div>
+                        <div>
+                          <Label>Posición *</Label>
+                          <Select value={newPlayer.position} onValueChange={(value) => setNewPlayer(prev => ({ ...prev, position: value }))}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccionar" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {positions.map(pos => (
+                                <SelectItem key={pos.value} value={pos.value}>{pos.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>N° Dorsal *</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="99"
+                            value={newPlayer.dorsalNumber}
+                            onChange={(e) => setNewPlayer(prev => ({ ...prev, dorsalNumber: e.target.value }))}
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <Button onClick={handleAddPlayer} disabled={!newPlayer.name || !newPlayer.position || !newPlayer.dorsalNumber}>
+                            <Plus className="w-4 h-4 mr-2" /> Agregar
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {newTeam.players.map(player => (
+                      <div key={player.id} className="flex justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-8 h-8 flex items-center justify-center bg-primary text-white rounded-full">
+                            {player.dorsalNumber}
+                          </div>
+                          <div>
+                            <p className="font-medium">{player.name}</p>
+                            <p className="text-sm text-gray-500">
+                              {positions.find(p => p.value === player.position)?.label || player.position}
+                            </p>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => handleRemovePlayer(player.id)} className="text-red-600">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Acciones */}
+                <div className="flex gap-3 pt-6 border-t">
+                  <Button onClick={handleCloseModal} variant="outline" className="flex-1">
+                    <X className="w-4 h-4 mr-2" /> Cancelar
+                  </Button>
+                  <Button onClick={handleSaveTeam} disabled={!isFormValid} className="flex-1">
+                    <Save className="w-4 h-4 mr-2" /> Guardar equipo
+                  </Button>
+                </div>
+              </div>
+
+        {/* Lista de equipos */}
+        {loading ? (
+          <p className="text-center text-gray-600 py-12">Cargando equipos...</p>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center text-xl">
+                <Users className="w-5 h-5 mr-2 text-primary" /> Equipos Registrados ({teams.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {teams.map(team => (
+                  <Card 
+                    key={team.id}
+                    onClick={() => handleTeamClick(team.id!)}
+                    className="cursor-pointer hover:shadow-lg transition-all duration-200"
+                  >
+                    <CardHeader>
+                      <div className="flex justify-between">
+                        <CardTitle>{team.name}</CardTitle>
+                        <Badge>{team.category}</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center text-sm text-gray-600">
+                        <UserCheck className="w-4 h-4 mr-2 text-primary" /> DT: {team.coach}
+                      </div>
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Users className="w-4 h-4 mr-2 text-primary" /> Campo: {team.mainField}
+                      </div>
+                      <div className="flex items-center text-sm text-gray-600 mt-1">
+                        <Users className="w-4 h-4 mr-2 text-primary" /> Jugadores: {team.players.length}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              {teams.length === 0 && (
+                <div className="text-center py-12">
+                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 text-lg mb-2">No hay equipos registrados</p>
+                  <p className="text-gray-400 text-sm">Registra el primer equipo para comenzar</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
