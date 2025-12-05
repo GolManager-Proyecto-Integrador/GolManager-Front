@@ -30,6 +30,8 @@ import {
 } from 'lucide-react';
 import { CalendarioService, Match, CreateMatchPayload, Tournament as ApiTournament, Referee as ApiReferee, Team } from '@/services/calendarService';
 import { useToast } from '@/hooks/use-toast';
+// ✅ AGREGAR ESTA IMPORTACIÓN
+import teamService from '@/services/teamManagementService';
 
 interface CalendarMatch {
   id: string;
@@ -58,6 +60,17 @@ interface LocalReferee {
   name: string;
 }
 
+// ✅ INTERFAZ PARA EQUIPOS SIMPLIFICADOS (AGREGADA)
+interface SimplifiedTeam {
+  teamId: number;
+  name: string;
+  coach?: string;
+  category?: string;
+  mainStadium?: string;
+  secondaryStadium?: string;
+  dateCreated?: string;
+}
+
 const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const monthNames = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -70,7 +83,7 @@ export default function Calendar() {
 
   useEffect(() => {
     document.title = `Calendario de Partidos`;
-  }, );
+  }, []); // ✅ CORREGIDO: Array de dependencias
 
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -87,7 +100,8 @@ export default function Calendar() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Nuevos estados para manejar equipos y estadios
-  const [selectedTournamentTeams, setSelectedTournamentTeams] = useState<Team[]>([]);
+  // ✅ CAMBIAR A SimplifiedTeam
+  const [selectedTournamentTeams, setSelectedTournamentTeams] = useState<SimplifiedTeam[]>([]);
   const [localTeamStadiums, setLocalTeamStadiums] = useState<{main: string; secondary: string}>({main: '', secondary: ''});
   const [stadiumOptions, setStadiumOptions] = useState<string[]>([]);
   const [isLoadingStadiums, setIsLoadingStadiums] = useState(false);
@@ -135,7 +149,7 @@ export default function Calendar() {
 
         // Convert API matches to CalendarMatch format
         const convertedMatches: CalendarMatch[] = fetchedMatches.map(match => {
-          const dateTime = new Date(match.matchDateTime);
+          const dateTime = new Date(match.matchDateTIme);
           const date = dateTime.toISOString().split('T')[0];
           const time = dateTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
@@ -180,13 +194,13 @@ export default function Calendar() {
       return;
     }
     
-    console.log('🔍 Team structure analysis:');
+    console.log('🔍 Team structure analysis (from teamService):'); // ✅ CORREGIDO
     console.log('Number of teams:', teams.length);
     console.log('First team:', teams[0]);
     console.log('Team keys:', Object.keys(teams[0]));
-    console.log('Has teamId:', 'teamId' in teams[0]);
-    console.log('Has id:', 'id' in teams[0]);
-    console.log('Has name:', 'name' in teams[0]);
+    console.log('Has id?:', 'id' in teams[0]); // ✅ CORREGIDO
+    console.log('Has name?:', 'name' in teams[0]); // ✅ CORREGIDO
+    console.log('Team structure type:', Array.isArray(teams) ? 'Array' : typeof teams); // ✅ AGREGADO
   };
 
   // Función para cargar equipos cuando se selecciona un torneo - MEJORADA
@@ -204,23 +218,32 @@ export default function Calendar() {
     
     if (tournamentId !== 'all') {
       try {
-        const teams = await CalendarioService.getTeamsByTournament(parseInt(tournamentId));
+        console.log(`🔄 handleTournamentChange called with:`, tournamentId);
+        console.log(`📞 Using teamService.getTeams()`); // ✅ AGREGADO
+        
+        // ✅ USA teamService EN LUGAR DE CalendarioService
+        const teams = await teamService.getTeams(parseInt(tournamentId));
+        
+        console.log('📦 Equipos obtenidos con teamService:', teams); // ✅ MEJORADO
         
         // DEBUG: Verificar estructura de equipos
         debugTeamStructure(teams);
         
-        setSelectedTournamentTeams(teams);
-        
-        // Convertir correctamente a la estructura esperada
-        const convertedTeams = teams.map(team => ({
-          id: team.teamId, // Usar teamId del equipo normalizado
+        // ✅ CORREGIDO: Crear array de SimplifiedTeam
+        const convertedTeams: SimplifiedTeam[] = teams.map(team => ({
+          teamId: team.id, // teamService usa 'id', lo convertimos a 'teamId'
           name: team.name
         }));
         
-        // Actualizar el estado de tournaments con los equipos
+        setSelectedTournamentTeams(convertedTeams);
+        
+        // Actualizar el estado de tournaments con los equipos simplificados
         setTournaments(prev => prev.map(t => 
           t.id === parseInt(tournamentId) 
-            ? { ...t, teams: convertedTeams }
+            ? { 
+                ...t, 
+                teams: teams.map(team => ({ id: team.id, name: team.name }))
+              }
             : t
         ));
 
@@ -250,14 +273,14 @@ export default function Calendar() {
       try {
         console.log('Loading team details for:', {
           tournamentId: newMatch.tournament,
-          teamId: selectedTeam.teamId,
+          teamId: selectedTeam.teamId, // ✅ USAR SOLO teamId
           teamName: selectedTeam.name
         });
 
         // Obtener detalles completos del equipo con el endpoint específico
         const teamDetails = await CalendarioService.getTeamDetails(
           parseInt(newMatch.tournament),
-          selectedTeam.teamId
+          selectedTeam.teamId // ✅ USAR SOLO teamId
         );
         
         console.log('Team details loaded:', teamDetails);
@@ -465,6 +488,7 @@ export default function Calendar() {
         }
 
         const selectedTournamentId = parseInt(newMatch.tournament);
+        // ✅ USAR SOLO teamId
         const homeTeamId = homeTeam.teamId;
         const awayTeamId = awayTeam.teamId;
         const refereeId = parseInt(newMatch.referee);
@@ -520,7 +544,7 @@ export default function Calendar() {
         const fetchedMatches = await CalendarioService.getMatches(initialDateStr, finishDateStr);
 
         const convertedMatches: CalendarMatch[] = fetchedMatches.map(match => {
-          const dateTime = new Date(match.matchDateTime);
+          const dateTime = new Date(match.matchDateTIme);
           const date = dateTime.toISOString().split('T')[0];
           const time = dateTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 

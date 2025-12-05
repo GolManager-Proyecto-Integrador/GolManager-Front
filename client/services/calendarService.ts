@@ -11,7 +11,7 @@ export interface Match {
   homeTeamId: number;
   awayTeam: string;
   awayTeamId: number;
-  matchDateTime: string;
+  matchDateTIme: string;
   stadium: string;
   goalsHomeTeam: number;
   goalsAwayTeam: number;
