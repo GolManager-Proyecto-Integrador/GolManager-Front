@@ -139,6 +139,15 @@ export default function TeamDetails() {
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Volver
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/dashboard-organizador")}
+                className="text-gray-600 hover:text-gray-900 border-gray-300"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Volver al panel
+              </Button>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">
                   Detalles del Equipo

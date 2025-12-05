@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import teamService from '@/services/teamManagementService';
 import {
   Select,
   SelectContent,
@@ -240,7 +241,12 @@ useEffect(() => {
 
       // Test cada endpoint individualmente
       const matchesData = await getUpcomingMatches(parseInt(idTournament), 100);
-      const teamsData = await getTournamentTeams(parseInt(idTournament));
+      const teamsData = await teamService.getTeams(parseInt(idTournament));
+      // Extrae solo id y name que necesitas para el select
+      const simpleTeams = teamsData.map(team => ({
+        id: team.id,
+        name: team.name
+      }));
       const refereesData = await getReferees();
 
       // DEBUG: Ver EXACTAMENTE qué devuelve getTournamentDetails
@@ -285,7 +291,7 @@ useEffect(() => {
 
       // Resto del código...
       setMatches(matchesData.matches || []);
-      setTeams(teamsData.teams || []);
+      setTeams(simpleTeams);
       setReferees(refereesData.referees || []);
       
       setTournament({

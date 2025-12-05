@@ -1,5 +1,3 @@
-// services/teamDetailsService.ts
-
 import axios from "axios";
 import { getToken } from "./authService";
 
@@ -46,6 +44,15 @@ interface BackendTeam {
   dateCreated: string;
 }
 
+interface BackendTeamSimple {
+  teamId: number;
+  name: string;
+  coach?: string;
+  category?: string;
+  mainStadium?: string;
+  secondaryStadium?: string;
+}
+
 interface BackendPlayer {
   idPlayer: number;
   name: string;
@@ -73,6 +80,12 @@ interface UpdatePlayerDTO {
   starter: boolean;
   shirtNumber: number;
   status: "ACTIVE" | "SUSPENDED" | "INJURED";
+}
+
+interface DeleteTeamResponse {
+  elementId: number;
+  elementName: string;
+  deletionElementDate: string;
 }
 
 // ============================================================
@@ -122,6 +135,23 @@ function mapBackendTeam(t: BackendTeam, players: Player[]): Team {
   return mappedTeam;
 }
 
+function mapBackendTeamSimple(t: BackendTeamSimple): Team {
+  console.log("🔍 Mapeando equipo simple backend:", t);
+  
+  const mappedTeam: Team = {
+    id: String(t.teamId),
+    name: t.name,
+    coach: t.coach || "No especificado",
+    category: t.category || "No especificado",
+    mainField: t.mainStadium || "No especificado",
+    secondaryField: t.secondaryStadium,
+    players: [], // Array vacío inicialmente
+  };
+  
+  console.log("✅ Equipo simple mapeado:", mappedTeam);
+  return mappedTeam;
+}
+
 // ============================================================
 // 🔹 MAPEO FRONTEND → BACKEND (CORREGIDO)
 // ============================================================
@@ -140,6 +170,49 @@ function mapFrontendPlayerToBackend(p: Player): UpdatePlayerDTO {
     shirtNumber: p.dorsalNumber,
     status: status, // ✅ Ahora es explícitamente del tipo correcto
   };
+}
+
+// ============================================================
+// 🔹 GET: Obtener todos los equipos de un torneo
+// ============================================================
+
+export async function getTeams(idTournament: string): Promise<Team[]> {
+  const token = getToken();
+  
+  console.log(`🔗 Obteniendo equipos del torneo ${idTournament}`);
+
+  try {
+    const response = await axios.get<BackendTeamSimple[]>(
+      `${API_TOURNAMENTS}/${idTournament}/teams`,
+      { 
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000
+      }
+    );
+    
+    console.log("✅ Respuesta de equipos:", response.data);
+    console.log(`📊 Cantidad de equipos recibidos: ${response.data.length}`);
+
+    // Mapear equipos simples
+    const teams: Team[] = response.data.map(mapBackendTeamSimple);
+    
+    console.log(`✅ ${teams.length} equipos mapeados correctamente`);
+    return teams;
+
+  } catch (error: any) {
+    console.error("💥 ERROR en getTeams:", error);
+    console.error("📌 URL intentada:", error.config?.url);
+    console.error("📌 Status:", error.response?.status);
+    console.error("📌 Data:", error.response?.data);
+    
+    // Si es un 404 (no hay equipos), devolver array vacío
+    if (error.response?.status === 404) {
+      console.log("⚠️ No hay equipos registrados en este torneo");
+      return [];
+    }
+    
+    throw error;
+  }
 }
 
 // ============================================================
@@ -181,7 +254,6 @@ export async function getTeamDetails(
       console.error("❌ ERROR al obtener jugadores:", playersError);
       console.error("📌 Status:", playersError.response?.status);
       console.error("📌 Data:", playersError.response?.data);
-      console.error("📌 Headers:", playersError.response?.headers);
       
       // Si falla, devolver array vacío pero continuar
       playersResponse = { data: [] };
@@ -240,6 +312,37 @@ export async function updateTeamDetails(
 }
 
 // ============================================================
+// 🔹 PUT: Actualizar equipo (versión simplificada para edición básica)
+// ============================================================
+
+export async function updateTeam(
+  idTournament: string, 
+  idTeam: string, 
+  updates: { name: string; coach: string }
+): Promise<Team> {
+  console.log(`📝 Actualizando equipo básico ${idTeam}`, updates);
+  
+  try {
+    // Obtener el equipo existente para mantener los otros campos
+    const existingTeam = await getTeamDetails(idTournament, idTeam);
+    
+    // Crear equipo actualizado
+    const updatedTeam: Team = {
+      ...existingTeam,
+      name: updates.name,
+      coach: updates.coach
+    };
+    
+    // Usar la función de actualización completa
+    return await updateTeamDetails(idTournament, idTeam, updatedTeam);
+    
+  } catch (error) {
+    console.error("💥 ERROR en updateTeam:", error);
+    throw error;
+  }
+}
+
+// ============================================================
 // 🔹 PUT: Actualizar un jugador
 // ============================================================
 
@@ -263,8 +366,81 @@ export async function updatePlayerDetails(
   return mapBackendPlayer(response.data);
 }
 
+// ============================================================
+// 🔹 DELETE: Eliminar un equipo
+// ============================================================
+
+export async function deleteTeam(idTournament: string, idTeam: string): Promise<DeleteTeamResponse> {
+  const token = getToken();
+
+  console.log(`🗑️ Eliminando equipo ${idTeam} del torneo ${idTournament}`);
+
+  try {
+    const response = await axios.delete<DeleteTeamResponse>(
+      `${API_TOURNAMENTS}/${idTournament}/teams/${idTeam}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    
+    console.log("✅ Equipo eliminado exitosamente:", response.data);
+    return response.data;
+    
+  } catch (error: any) {
+    console.error("💥 ERROR en deleteTeam:", error);
+    console.error("📌 Status:", error.response?.status);
+    console.error("📌 Data:", error.response?.data);
+    throw error;
+  }
+}
+
+// ============================================================
+// 🔹 Función de depuración para ver estructura real
+// ============================================================
+
+export async function debugTeamsEndpoint(idTournament: string): Promise<any> {
+  const token = getToken();
+  
+  try {
+    console.log(`🔍 DEBUG: Llamando a ${API_TOURNAMENTS}/${idTournament}/teams`);
+    
+    const response = await axios.get(
+      `${API_TOURNAMENTS}/${idTournament}/teams`,
+      { 
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 5000
+      }
+    );
+    
+    console.log("🔍 DEBUG - Estructura completa de respuesta:", response.data);
+    console.log("🔍 DEBUG - Tipo de respuesta:", typeof response.data);
+    console.log("🔍 DEBUG - Es array?:", Array.isArray(response.data));
+    
+    if (typeof response.data === 'object' && !Array.isArray(response.data)) {
+      console.log("🔍 DEBUG - Keys del objeto:", Object.keys(response.data));
+    }
+    
+    return response.data;
+    
+  } catch (error: any) {
+    console.error("❌ DEBUG Error:", error);
+    console.error("📌 Status:", error.response?.status);
+    console.error("📌 Data:", error.response?.data);
+    throw error;
+  }
+}
+
+// ============================================================
+// 🔹 Exportar todos los métodos
+// ============================================================
+
 export default {
+  // Métodos principales
+  getTeams,
   getTeamDetails,
+  deleteTeam,
+  updateTeam,
   updateTeamDetails,
   updatePlayerDetails,
+  
+  // Utilidades y debug
+  debugTeamsEndpoint,
 };
