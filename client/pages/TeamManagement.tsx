@@ -67,6 +67,13 @@ export default function TeamManagement() {
       const data = await teamService.getTeams(tournamentId);
       setTeams(data);
       setErrors([]);
+      
+      // 🔹 DEPURACIÓN: Log para verificar los equipos cargados
+      console.log('Equipos cargados:', data.map((team: Team, index: number) => ({ 
+        index, 
+        id: team.id, 
+        name: team.name 
+      })));
     } catch (error: any) {
       console.error("Error cargando equipos:", error);
       setErrors([error.response?.data?.message || 'Error al cargar los equipos. Intente nuevamente.']);
@@ -79,8 +86,29 @@ export default function TeamManagement() {
     fetchTeams();
   }, [idTournament]);
 
-  const handleTeamClick = (teamId: number) => {
-    navigate(`/tournament/${idTournament}/team/${teamId}`);
+  // 🔹 DEPURACIÓN: Log para verificar cambios en los equipos
+  useEffect(() => {
+    if (teams.length > 0) {
+      console.log('Estado actual de equipos:', teams);
+    }
+  }, [teams]);
+
+  const handleTeamClick = (team: Team) => {
+    // 🔹 Validar que el equipo tenga ID
+    if (!team.id) {
+      console.error('El equipo no tiene ID válido:', team);
+      return;
+    }
+    
+    // 🔹 DEPURACIÓN: Log para verificar qué equipo se está clickeando
+    console.log('Haciendo clic en equipo:', { 
+      id: team.id, 
+      name: team.name,
+      index: teams.findIndex(t => t.id === team.id)
+    });
+    
+    // 🔹 Navegar al equipo correcto
+    navigate(`/tournament/${idTournament}/team/${team.id}`);
   };
 
   const handleInputChange = (field: keyof NewTeamData, value: string) => {
@@ -554,45 +582,62 @@ export default function TeamManagement() {
             <CardContent>
               {teams.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {teams.map(team => (
-                    <Card 
-                      key={team.id}
-                      onClick={() => handleTeamClick(team.id!)}
-                      className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-primary"
-                    >
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <CardTitle className="text-lg truncate">{team.name}</CardTitle>
-                          <Badge variant="outline" className="ml-2">
-                            {categories.find(c => c.value === team.category)?.label || team.category}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          <div className="flex items-center text-sm text-gray-600">
-                            <UserCheck className="w-4 h-4 mr-2 text-primary flex-shrink-0" /> 
-                            <span className="truncate">DT: {team.coach}</span>
+                  {teams.map((team, index) => {
+                    // 🔹 DEPURACIÓN: Log para verificar el renderizado de cada equipo
+                    console.log(`Renderizando equipo ${index}:`, { 
+                      index, 
+                      id: team.id, 
+                      name: team.name 
+                    });
+                    
+                    // 🔹 Solo renderizar si el equipo tiene ID válido
+                    if (!team.id) {
+                      console.warn(`Equipo en índice ${index} no tiene ID válido:`, team);
+                      return null;
+                    }
+                    
+                    return (
+                      <Card 
+                        key={team.id}
+                        onClick={() => handleTeamClick(team)}
+                        className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-primary"
+                      >
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <CardTitle className="text-lg truncate">
+                              {team.name}
+                            </CardTitle>
+                            <Badge variant="outline" className="ml-2">
+                              {categories.find(c => c.value === team.category)?.label || team.category}
+                            </Badge>
                           </div>
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Users className="w-4 h-4 mr-2 text-primary flex-shrink-0" /> 
-                            <span className="truncate">Campo: {team.mainField}</span>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            <div className="flex items-center text-sm text-gray-600">
+                              <UserCheck className="w-4 h-4 mr-2 text-primary flex-shrink-0" /> 
+                              <span className="truncate">DT: {team.coach}</span>
+                            </div>
+                            <div className="flex items-center text-sm text-gray-600">
+                              <Users className="w-4 h-4 mr-2 text-primary flex-shrink-0" /> 
+                              <span className="truncate">Campo: {team.mainField}</span>
+                            </div>
+                            <div className="flex items-center text-sm text-gray-600">
+                              <Users className="w-4 h-4 mr-2 text-primary flex-shrink-0" /> 
+                              <span>Jugadores: {team.players.length}</span>
+                            </div>
                           </div>
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Users className="w-4 h-4 mr-2 text-primary flex-shrink-0" /> 
-                            <span>Jugadores: {team.players.length}</span>
-                          </div>
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="w-full mt-4 text-primary hover:text-primary hover:bg-primary/10"
-                        >
-                          Ver detalles →
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="w-full mt-4 text-primary hover:text-primary hover:bg-primary/10"
+                          >
+                            Ver detalles →
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-12">

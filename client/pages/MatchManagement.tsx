@@ -821,6 +821,12 @@ export default function MatchManagement() {
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Volver
               </Button>
+              <Button 
+              onClick={() => navigate('/dashboard-organizador')}
+              className="mt-4"
+            >
+              Volver al dashboard
+            </Button>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Gestión de Partidos</h1>
                 <p className="mt-1 text-sm text-gray-500">Administra resultados y eventos del partido</p>

@@ -22,15 +22,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Edit3, Users, MapPin, User } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ArrowLeft, Edit3, Users, MapPin, User, CheckCircle, XCircle } from "lucide-react";
 
 // 🔹 Importar servicio
 import {
   getTeamDetails,
   updateTeamDetails,
+  updatePlayerDetails,
   Team,
   Player,
-} from "@/services/teamDetailsService";
+} from "@/services/teamDetService";
 
 const roles = ["Titular", "Suplente"];
 const statuses = ["Activo", "Suspendido", "Lesionado"];
@@ -49,7 +51,6 @@ const getStatusColor = (status?: Player["status"]) => {
 };
 
 export default function TeamDetails() {
-  // 👇 Ahora obtenemos ambos ids desde la URL
   const { idTournament, teamId } = useParams<{
     idTournament: string;
     teamId: string;
@@ -60,6 +61,9 @@ export default function TeamDetails() {
   const [team, setTeam] = useState<Team | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [changedPlayers, setChangedPlayers] = useState<Set<string>>(new Set());
 
   // 🔹 Cargar datos del backend
   useEffect(() => {
@@ -69,8 +73,10 @@ export default function TeamDetails() {
         const data = await getTeamDetails(idTournament, teamId);
         setTeam(data);
         setPlayers(data.players || []);
+        setChangedPlayers(new Set()); // Resetear cambios al cargar
       } catch (error) {
         console.error("Error al cargar los detalles del equipo:", error);
+        setMessage({ type: 'error', text: 'Error al cargar los datos del equipo' });
       } finally {
         setLoading(false);
       }
@@ -84,6 +90,8 @@ export default function TeamDetails() {
         player.id === playerId ? { ...player, role: newRole as any } : player
       )
     );
+    // Marcar jugador como modificado
+    setChangedPlayers(prev => new Set(prev).add(playerId));
   };
 
   const handlePlayerStatusChange = (playerId: string, newStatus: string) => {
@@ -94,19 +102,101 @@ export default function TeamDetails() {
           : player
       )
     );
+    // Marcar jugador como modificado
+    setChangedPlayers(prev => new Set(prev).add(playerId));
   };
 
   const handleEditTeam = async () => {
-    if (!idTournament || !teamId || !team) return;
+    if (!idTournament || !teamId || !team) {
+      setMessage({ type: 'error', text: 'Datos incompletos para guardar' });
+      return;
+    }
+
+    setSaving(true);
+    setMessage(null);
+
     try {
-      const updated = await updateTeamDetails(idTournament, teamId, {
-        ...team,
-        players,
-      });
-      setTeam(updated);
-      console.log("Equipo actualizado:", updated);
+      let successCount = 0;
+      let errorCount = 0;
+
+      // 🔹 PASO 1: Actualizar jugadores modificados individualmente
+      if (changedPlayers.size > 0) {
+        console.log(`🔄 Actualizando ${changedPlayers.size} jugador(es) modificado(s)...`);
+        
+        for (const playerId of changedPlayers) {
+          const player = players.find(p => p.id === playerId);
+          if (player) {
+            try {
+              await updatePlayerDetails(idTournament, teamId, player);
+              successCount++;
+              console.log(`✅ Jugador "${player.name}" actualizado`);
+            } catch (error) {
+              errorCount++;
+              console.error(`❌ Error actualizando jugador "${player.name}":`, error);
+            }
+          }
+        }
+      }
+
+      // 🔹 PASO 2: Actualizar datos generales del equipo (si hay cambios)
+      if (team) {
+        try {
+          const updatedTeam = await updateTeamDetails(idTournament, teamId, {
+            ...team,
+            players // Incluir jugadores actualizados
+          });
+          setTeam(updatedTeam);
+          successCount++;
+          console.log('✅ Datos del equipo actualizados');
+        } catch (error) {
+          errorCount++;
+          console.error('❌ Error actualizando datos del equipo:', error);
+        }
+      }
+
+      // 🔹 PASO 3: Mostrar mensaje de resultado
+      if (successCount > 0 && errorCount === 0) {
+        setMessage({ 
+          type: 'success', 
+          text: `¡Cambios guardados exitosamente! (${successCount} actualización${successCount > 1 ? 'es' : ''})` 
+        });
+        // Limpiar lista de jugadores modificados
+        setChangedPlayers(new Set());
+        
+        // Recargar datos para verificar cambios
+        setTimeout(() => {
+          const fetchUpdatedData = async () => {
+            try {
+              const data = await getTeamDetails(idTournament, teamId);
+              setPlayers(data.players || []);
+            } catch (error) {
+              console.error('Error recargando datos:', error);
+            }
+          };
+          fetchUpdatedData();
+        }, 1000);
+        
+      } else if (errorCount > 0) {
+        setMessage({ 
+          type: 'error', 
+          text: `Se guardaron ${successCount} cambios, pero hubo ${errorCount} error(es)` 
+        });
+      } else {
+        setMessage({ 
+          type: 'error', 
+          text: 'No se detectaron cambios para guardar' 
+        });
+      }
+
     } catch (error) {
-      console.error("Error al actualizar el equipo:", error);
+      console.error("Error general al guardar cambios:", error);
+      setMessage({ type: 'error', text: 'Error al guardar los cambios. Intente nuevamente.' });
+    } finally {
+      setSaving(false);
+      // Limpiar mensaje después de 5 segundos
+      setTimeout(() => {
+        setMessage(null);
+      }, 5000);
     }
   };
 
@@ -114,6 +204,9 @@ export default function TeamDetails() {
     if (!idTournament) return;
     navigate(`/tournament/${idTournament}/teams-manage`);
   };
+
+  // 🔹 Verificar si hay cambios pendientes
+  const hasUnsavedChanges = changedPlayers.size > 0;
 
   if (loading) {
     return <div className="p-6 text-center">Cargando equipo...</div>;
@@ -162,6 +255,40 @@ export default function TeamDetails() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+        {/* Mensaje de estado */}
+        {message && (
+          <Alert className={message.type === 'success' 
+            ? "border-green-200 bg-green-50" 
+            : message.type === 'error' 
+            ? "border-red-200 bg-red-50" 
+            : "border-blue-200 bg-blue-50"
+          }>
+            <div className="flex items-center">
+              {message.type === 'success' ? (
+                <CheckCircle className="w-5 h-5 mr-2 text-green-600" />
+              ) : message.type === 'error' ? (
+                <XCircle className="w-5 h-5 mr-2 text-red-600" />
+              ) : (
+                <Users className="w-5 h-5 mr-2 text-blue-600" />
+              )}
+              <AlertDescription className={
+                message.type === 'success' 
+                  ? "text-green-700" 
+                  : message.type === 'error' 
+                  ? "text-red-700" 
+                  : "text-blue-700"
+              }>
+                {message.text}
+                {hasUnsavedChanges && message.type === 'success' && (
+                  <div className="text-sm mt-1 text-green-600">
+                    Los cambios se verán reflejados al recargar la página.
+                  </div>
+                )}
+              </AlertDescription>
+            </div>
+          </Alert>
+        )}
+
         {/* Team Information Card */}
         <Card className="bg-white shadow-lg border-0 rounded-xl">
           <CardHeader>
@@ -267,6 +394,11 @@ export default function TeamDetails() {
                       </span>
                     </div>
                   </div>
+                  {hasUnsavedChanges && (
+                    <div className="mt-2 text-sm text-yellow-600 font-medium">
+                      ⚠️ Tienes {changedPlayers.size} cambio(s) pendiente(s) por guardar
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -305,7 +437,14 @@ export default function TeamDetails() {
                       }
                     >
                       <TableCell className="font-medium">
-                        {player.name}
+                        <div className="flex items-center">
+                          {player.name}
+                          {changedPlayers.has(player.id) && (
+                            <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                              Sin guardar
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
@@ -314,12 +453,12 @@ export default function TeamDetails() {
                       </TableCell>
                       <TableCell>
                         <Select
-                          value={(player as any).role || "Titular"}
+                          value={player.role || "Titular"}
                           onValueChange={(value) =>
                             handlePlayerRoleChange(player.id, value)
                           }
                         >
-                          <SelectTrigger className="w-32">
+                          <SelectTrigger className={`w-32 ${changedPlayers.has(player.id) ? 'border-yellow-400' : ''}`}>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -359,9 +498,7 @@ export default function TeamDetails() {
                           }
                         >
                           <SelectTrigger
-                            className={`w-32 ${getStatusColor(
-                              player.status
-                            )}`}
+                            className={`w-32 ${getStatusColor(player.status)} ${changedPlayers.has(player.id) ? 'border-yellow-400' : ''}`}
                           >
                             <SelectValue />
                           </SelectTrigger>
@@ -389,6 +526,11 @@ export default function TeamDetails() {
                 desde los registros de partidos. Solo los campos
                 "Titular/Suplente" y "Estado" son editables por el organizador.
               </p>
+              {hasUnsavedChanges && (
+                <div className="mt-3 text-sm text-yellow-700 font-medium p-2 bg-yellow-50 rounded border border-yellow-200">
+                  💡 Recuerda hacer clic en "Guardar cambios" para aplicar las modificaciones al servidor.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -402,6 +544,7 @@ export default function TeamDetails() {
                 size="lg"
                 onClick={handleBackToTournament}
                 className="text-gray-600 border-gray-300 hover:bg-gray-50"
+                disabled={saving}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Volver al torneo
@@ -409,19 +552,30 @@ export default function TeamDetails() {
               <Button
                 size="lg"
                 onClick={handleEditTeam}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
-                style={{ backgroundColor: "#2563eb" }}
+                disabled={saving || !hasUnsavedChanges}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Edit3 className="w-4 h-4 mr-2" />
-                Guardar cambios
+                {saving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Edit3 className="w-4 h-4 mr-2" />
+                    {hasUnsavedChanges ? `Guardar cambios (${changedPlayers.size})` : 'Guardar cambios'}
+                  </>
+                )}
               </Button>
             </div>
+            {hasUnsavedChanges && !saving && (
+              <div className="mt-3 text-sm text-gray-500 text-center">
+                Tienes {changedPlayers.size} cambio(s) pendiente(s) por guardar
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
     </div>
   );
-}   
-
-
-
+}
