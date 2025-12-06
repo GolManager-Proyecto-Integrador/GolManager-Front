@@ -21,6 +21,7 @@ import {
   updateCard,
   deleteCard,
 } from '@/services/matchManagementService';
+import { getTeamDetails } from '@/services/teamDetailsService';
 
 interface MatchData {
   id: number;
@@ -60,6 +61,9 @@ interface Position {
   position: number;
 }
 
+interface PlayersMap {
+  [key: number]: Player;
+}
 
 const eventTypeOptions = [
   { value: 'goal', label: 'Gol ⚽', icon: '⚽' },
@@ -93,21 +97,76 @@ const getEventLabel = (type: string) => {
   }
 };
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('es-ES', {
+// Función mejorada para formatear fecha/hora del partido
+const formatMatchDateTime = (dateString: string): { date: string, time: string, displayDate: string, displayTime: string } => {
+  if (!dateString) {
+    console.warn('Fecha vacía recibida');
+    return { date: '', time: '', displayDate: 'Fecha no disponible', displayTime: 'Hora no disponible' };
+  }
+  
+  console.log('🔍 Procesando fecha:', dateString);
+  
+  let isoString = dateString;
+  
+  // Normalizar formato
+  if (isoString.includes(" ")) {
+    isoString = isoString.replace(" ", "T");
+  }
+  
+  // Si no tiene zona horaria, asumir UTC
+  if (!isoString.includes("+") && !isoString.includes("Z") && !isoString.includes("-")) {
+    if (!isoString.includes("T")) {
+      isoString = isoString + "T00:00:00";
+    }
+    isoString = isoString + "Z";
+  }
+  
+  const dateObj = new Date(isoString);
+  
+  if (isNaN(dateObj.getTime())) {
+    console.error('❌ Fecha inválida:', dateString);
+    return { date: '', time: '', displayDate: 'Fecha inválida', displayTime: 'Hora inválida' };
+  }
+  
+  // Para campos de formulario (YYYY-MM-DD, HH:MM)
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  const hours = String(dateObj.getHours()).padStart(2, '0');
+  const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+  
+  // Para display (igual que en UpcomingMatches)
+  const displayDate = dateObj.toLocaleDateString('es-ES', {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
   });
+  
+  const displayTime = dateObj.toLocaleTimeString('es-ES', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  
+  console.log('✅ Fecha procesada:', {
+    original: dateString,
+    date: `${year}-${month}-${day}`,
+    time: `${hours}:${minutes}`,
+    displayDate,
+    displayTime
+  });
+  
+  return {
+    date: `${year}-${month}-${day}`,
+    time: `${hours}:${minutes}`,
+    displayDate,
+    displayTime
+  };
 };
 
 export default function MatchManagement() {
-
   useEffect(() => {
     document.title = `Gestión de Partido`;
-  }, );
-
+  }, []);
 
   const { tournamentId, matchId } = useParams();
   const navigate = useNavigate();
@@ -118,6 +177,7 @@ export default function MatchManagement() {
   const [events, setEvents] = useState<MatchEvent[]>([]);
   const [positions, setPositions] = useState<Record<number, Position>>({});
   const [players, setPlayers] = useState<Player[]>([]);
+  const [playersMap, setPlayersMap] = useState<PlayersMap>({});
 
   // Loading and error states
   const [isLoading, setIsLoading] = useState(true);
@@ -170,65 +230,91 @@ export default function MatchManagement() {
         const matchIdNum = parseInt(matchId);
         const tournamentIdNum = parseInt(tournamentId);
 
-        const [matchDetailsData, eventsData, positionsData] = await Promise.all([
-          getMatchDetails(tournamentIdNum, matchIdNum),
+        // 1. Obtener detalles del partido
+        const matchDetailsData = await getMatchDetails(tournamentIdNum, matchIdNum);
+        
+        console.log('📊 Datos del partido recibidos:', {
+          matchDateTime: matchDetailsData.matchDateTIme,
+          homeTeam: matchDetailsData.homeTeam,
+          awayTeam: matchDetailsData.awayTeam,
+          stadium: matchDetailsData.stadium,
+          refereeName: matchDetailsData.refereeName
+        });
+
+        // 2. Obtener jugadores de AMBOS equipos usando teamDetailsService
+        const [homeTeamData, awayTeamData] = await Promise.all([
+          getTeamDetails(tournamentIdNum.toString(), matchDetailsData.homeTeamId.toString()),
+          getTeamDetails(tournamentIdNum.toString(), matchDetailsData.awayTeamId.toString()),
+        ]);
+
+        // 3. Obtener eventos y posiciones
+        const [eventsData, positionsData] = await Promise.all([
           getMatchEvents(tournamentIdNum, matchIdNum),
           getTournamentPositions(tournamentIdNum),
         ]);
 
-// Fix backend naming → Adapt to frontend structure
-let raw = matchDetailsData.matchDateTIme;
+        // 4. Formatear jugadores
+        const allPlayers: Player[] = [];
+        
+        // Home team players
+        if (homeTeamData.players && Array.isArray(homeTeamData.players)) {
+          homeTeamData.players.forEach((player: any) => {
+            allPlayers.push({
+              id: parseInt(player.id),
+              name: player.name,
+              team: 'home',
+            });
+          });
+        }
+        
+        // Away team players
+        if (awayTeamData.players && Array.isArray(awayTeamData.players)) {
+          awayTeamData.players.forEach((player: any) => {
+            allPlayers.push({
+              id: parseInt(player.id),
+              name: player.name,
+              team: 'away',
+            });
+          });
+        }
+        
+        setPlayers(allPlayers);
 
-let fixedDate = "";
-let fixedTime = "";
+        // 5. Crear mapa de jugadores para acceso rápido
+        const playersMapObj: PlayersMap = {};
+        allPlayers.forEach(player => {
+          playersMapObj[player.id] = player;
+        });
+        setPlayersMap(playersMapObj);
 
-// Si viene null, undefined o vacío → no intentar formatear
-if (raw && typeof raw === "string") {
-  
-  // Si viene con espacio en vez de T → corregir
-  if (raw.includes(" ")) {
-    raw = raw.replace(" ", "T");
-  }
+        // 6. Formatear fecha y hora del partido - USANDO FUNCIÓN MEJORADA
+        const { date: fixedDate, time: fixedTime, displayDate, displayTime } = 
+          formatMatchDateTime(matchDetailsData.matchDateTIme);
 
-  const dateObj = new Date(raw);
+        setMatch({
+          id: matchDetailsData.matchId,
+          tournamentId: matchDetailsData.tournamentId,
+          homeTeamId: matchDetailsData.homeTeamId,
+          awayTeamId: matchDetailsData.awayTeamId,
+          homeTeam: matchDetailsData.homeTeam,
+          awayTeam: matchDetailsData.awayTeam,
+          date: fixedDate,
+          time: fixedTime,
+          stadium: matchDetailsData.stadium,
+          referee: matchDetailsData.refereeName || 'Sin árbitro asignado',
+          homeScore: matchDetailsData.goalsHomeTeam ?? 0,
+          awayScore: matchDetailsData.goalsAwayTeam ?? 0,
+        });
 
-  if (!isNaN(dateObj.getTime())) {
-    fixedDate = raw.split("T")[0];
-    fixedTime = raw.split("T")[1]?.substring(0, 5) || "";
-  }
-}
+        // initial reschedule data
+        setRescheduleData({
+          date: fixedDate,
+          time: fixedTime,
+          stadium: matchDetailsData.stadium,
+          referee: matchDetailsData.refereeName || '',
+        });
 
-console.log("FECHA PROCESADA →", { raw, fixedDate, fixedTime });
-
-
-setMatch({
-  id: matchDetailsData.matchId,
-  tournamentId: matchDetailsData.tournamentId,
-
-  homeTeamId: matchDetailsData.homeTeamId,
-  awayTeamId: matchDetailsData.awayTeamId,
-  homeTeam: matchDetailsData.homeTeam,
-  awayTeam: matchDetailsData.awayTeam,
-
-  date: fixedDate,
-  time: fixedTime,
-  stadium: matchDetailsData.stadium,
-  referee: matchDetailsData.refereeName,
-
-  homeScore: matchDetailsData.goalsHomeTeam ?? 0,
-  awayScore: matchDetailsData.goalsAwayTeam ?? 0,
-});
-
-// initial reschedule data
-setRescheduleData({
-  date: fixedDate,
-  time: fixedTime,
-  stadium: matchDetailsData.stadium,
-  referee: matchDetailsData.refereeName,
-});
-
-
-        // Build positions map
+        // 7. Build positions map
         const positionsMap: Record<number, Position> = {};
         if (positionsData.positions && Array.isArray(positionsData.positions)) {
           positionsData.positions.forEach((pos: any) => {
@@ -237,55 +323,36 @@ setRescheduleData({
         }
         setPositions(positionsMap);
 
-        // Set events (merge goals and cards)
+        // 8. Set events (merge goals and cards)
         const allEvents: MatchEvent[] = [];
         if (eventsData.listGoals && Array.isArray(eventsData.listGoals)) {
           eventsData.listGoals.forEach((goal: any) => {
+            const player = playersMapObj[goal.playerId];
             allEvents.push({
               id: goal.goalId,
               minute: goal.minute,
-              player: goal.playerTeamName || goal.player,
+              player: player ? player.name : `Jugador #${goal.playerId}`,
               playerId: goal.playerId,
               type: 'goal',
-              team: goal.teamId === matchDetailsData.homeTeamId ? 'home' : 'away',
+              team: goal.playerTeamId === matchDetailsData.homeTeamId ? 'home' : 'away',
             });
           });
         }
         if (eventsData.listCards && Array.isArray(eventsData.listCards)) {
           eventsData.listCards.forEach((card: any) => {
+            const player = playersMapObj[card.playerId];
             allEvents.push({
               id: card.cardId,
               minute: card.minute,
-              player: card.playerTeamName || card.player,
+              player: player ? player.name : `Jugador #${card.playerId}`,
               playerId: card.playerId,
               type: card.cardColor === 'RED' ? 'red' : 'yellow',
-              team: card.teamId === matchDetailsData.homeTeamId ? 'home' : 'away',
+              team: card.playerTeamId === matchDetailsData.homeTeamId ? 'home' : 'away',
             });
           });
         }
         setEvents(allEvents.sort((a, b) => a.minute - b.minute));
 
-        // Build players list from match details
-        const allPlayers: Player[] = [];
-        if (matchDetailsData.homeTeamPlayers && Array.isArray(matchDetailsData.homeTeamPlayers)) {
-          matchDetailsData.homeTeamPlayers.forEach((player: any) => {
-            allPlayers.push({
-              id: player.id,
-              name: player.name,
-              team: 'home',
-            });
-          });
-        }
-        if (matchDetailsData.awayTeamPlayers && Array.isArray(matchDetailsData.awayTeamPlayers)) {
-          matchDetailsData.awayTeamPlayers.forEach((player: any) => {
-            allPlayers.push({
-              id: player.id,
-              name: player.name,
-              team: 'away',
-            });
-          });
-        }
-        setPlayers(allPlayers);
       } catch (err) {
         console.error('Error loading match data:', err);
         setError(err instanceof Error ? err.message : 'Error loading match data');
@@ -391,10 +458,11 @@ setRescheduleData({
           goalMinute: minute,
         });
 
+        const playerInMap = playersMap[playerId];
         const newGoalEvent: MatchEvent = {
           id: goalData.goalId,
           minute: goalData.minute,
-          player: goalData.playerTeamName,
+          player: playerInMap ? playerInMap.name : `Jugador #${playerId}`,
           playerId: goalData.playerId,
           type: 'goal',
           team: goalData.playerTeamId === match.homeTeamId ? 'home' : 'away',
@@ -427,10 +495,11 @@ setRescheduleData({
           cardColor: newEvent.cardColor,
         });
 
+        const playerInMap = playersMap[playerId];
         const newCardEvent: MatchEvent = {
           id: cardData.cardId,
           minute: cardData.minute,
-          player: cardData.playerTeamName,
+          player: playerInMap ? playerInMap.name : `Jugador #${playerId}`,
           playerId: cardData.playerId,
           type: cardData.cardColor === 'RED' ? 'red' : 'yellow',
           team: cardData.playerTeamId === match.homeTeamId ? 'home' : 'away',
@@ -505,13 +574,14 @@ setRescheduleData({
           goalMinute: minute,
         });
 
+        const playerInMap = playersMap[playerId];
         const updatedEvents = events
           .map((e) =>
             e.id === editingEvent.id
               ? {
                   ...e,
                   minute,
-                  player: player.name,
+                  player: playerInMap ? playerInMap.name : `Jugador #${playerId}`,
                   playerId,
                 }
               : e
@@ -544,13 +614,14 @@ setRescheduleData({
           cardColor: editFormData.cardColor,
         });
 
+        const playerInMap = playersMap[playerId];
         const updatedEvents = events
           .map((e) =>
             e.id === editingEvent.id
               ? {
                   ...e,
                   minute,
-                  player: player.name,
+                  player: playerInMap ? playerInMap.name : `Jugador #${playerId}`,
                   playerId,
                   type: editFormData.cardColor === 'RED' ? 'red' : 'yellow',
                 }
@@ -716,6 +787,24 @@ setRescheduleData({
     );
   }
 
+  // Función para formatear fecha para mostrar
+  const formatDisplayDate = (dateString: string) => {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Fecha inválida';
+    
+    return date.toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    });
+  };
+
+  // Función para formatear hora para mostrar
+  const formatDisplayTime = (timeString: string) => {
+    if (!timeString) return 'Hora no disponible';
+    return timeString;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -822,7 +911,7 @@ setRescheduleData({
                       isMatchFinalized ? 'text-gray-500' : 'text-gray-900'
                     }`}
                   >
-                    {formatDate(match.date)}
+                    {formatDisplayDate(match.date)}
                   </p>
                 )}
               </div>
@@ -846,7 +935,7 @@ setRescheduleData({
                       isMatchFinalized ? 'text-gray-500' : 'text-gray-900'
                     }`}
                   >
-                    {match.time}
+                    {formatDisplayTime(match.time)}
                   </p>
                 )}
               </div>
