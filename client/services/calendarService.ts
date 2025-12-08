@@ -3,6 +3,75 @@ import { getToken } from "./authService";
 
 const API_BASE_URL = 'http://localhost:8085/api';
 
+// 🔹 CREAR EL MISMO CLIENTE AXIOS QUE EN teamManagementService
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+// 🔹 AGREGAR EL MISMO INTERCEPTOR DE REQUEST
+apiClient.interceptors.request.use(
+  (config) => {
+    let token = getToken();
+    const tokenSource = token ? 'getToken()' : 'localStorage';
+    
+    if (!token) {
+      token = localStorage.getItem("token");
+    }
+
+    if (token) {
+      let cleanToken = token.replace(/^"(.*)"$/, '$1');
+      if (cleanToken.startsWith("Bearer ")) {
+        cleanToken = cleanToken.slice(7).trim();
+      }
+      
+      // 🔍 DEBUG EXTENDIDO DEL TOKEN
+      console.log(`🔐 CalendarService - Token source: ${tokenSource}`);
+      console.log(`🔐 CalendarService - Token length: ${cleanToken.length}`);
+      
+      if (cleanToken && cleanToken !== "null" && cleanToken !== "undefined") {
+        config.headers.Authorization = `Bearer ${cleanToken}`;
+        console.log('✅ CalendarService - Token configurado en headers');
+      } else {
+        console.warn('⚠️ CalendarService - Token inválido o vacío después de limpieza');
+      }
+    } else {
+      console.warn('⚠️ CalendarService - No se encontró token en ninguna fuente');
+    }
+    
+    return config;
+  },
+  (error) => {
+    console.error('❌ CalendarService - Error en request interceptor:', error);
+    return Promise.reject(error);
+  }
+);
+
+// 🔹 AGREGAR INTERCEPTOR DE RESPUESTA
+apiClient.interceptors.response.use(
+  (response) => {
+    console.log(`✅ CalendarService - ${response.config.method?.toUpperCase()} ${response.config.url} - Status: ${response.status}`);
+    return response;
+  },
+  (error) => {
+    const status = error.response?.status;
+    const url = error.config?.url;
+    const method = error.config?.method;
+    
+    console.error(`❌ CalendarService - ${method?.toUpperCase()} ${url} - Status: ${status}`);
+    
+    if (status === 401) {
+      console.error('🔐 CalendarService - ERROR 401 DETECTADO');
+      const authHeader = error.config?.headers?.Authorization;
+      console.log('🔑 CalendarService - Header Authorization:', authHeader ? 'PRESENTE' : 'AUSENTE');
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
 export interface Match {
   tournamentId: number;
   tournamentName: string;
@@ -11,7 +80,7 @@ export interface Match {
   homeTeamId: number;
   awayTeam: string;
   awayTeamId: number;
-  matchDateTIme: string;
+  matchDateTime: string;
   stadium: string;
   goalsHomeTeam: number;
   goalsAwayTeam: number;
@@ -84,7 +153,7 @@ const formatToOffsetDateTime = (dateString: string, isStart: boolean = true): st
   return `${year}-${month}-${day}${timePart}${offset}`;
 };
 
-// Función auxiliar para verificar y obtener el token
+// Función auxiliar para verificar y obtener el token (mantenida para compatibilidad)
 const getValidToken = (): string => {
   const token = getToken();
   if (!token) {
@@ -95,37 +164,31 @@ const getValidToken = (): string => {
 };
 
 export const CalendarioService = {
-  // Obtener partidos de un rango de fechas
+  // Obtener partidos de un rango de fechas - USANDO apiClient
   getMatches: async (initialDate: string, finishDate: string): Promise<Match[]> => {
     try {
-      const token = getValidToken();
-      
       // Formatear fechas como OffsetDateTime
       const initialDateTime = formatToOffsetDateTime(initialDate, true);
       const finishDateTime = formatToOffsetDateTime(finishDate, false);
       
-      console.log('📅 Sending dates as OffsetDateTime:', { 
+      console.log('📅 CalendarService - Sending dates as OffsetDateTime:', { 
         initialDate: initialDateTime, 
         finishDate: finishDateTime 
       });
       
-      const response = await axios.get<Match[]>(`${API_BASE_URL}/tournaments/matches/calendar`, {
+      const response = await apiClient.get<Match[]>('/tournaments/matches/calendar', {
         params: { 
           initialDate: initialDateTime, 
           finishDate: finishDateTime 
-        },
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        }
       });
       
-      console.log('✅ Matches response:', response.data);
+      console.log('✅ CalendarService - Matches response:', response.data);
       return Array.isArray(response.data) ? response.data : [];
     } catch (error) {
-      console.error('❌ Error fetching matches:', error);
+      console.error('❌ CalendarService - Error fetching matches:', error);
       if (axios.isAxiosError(error)) {
-        console.error('🔍 Matches error details:', {
+        console.error('🔍 CalendarService - Matches error details:', {
           status: error.response?.status,
           statusText: error.response?.statusText,
           data: error.response?.data,
@@ -136,30 +199,22 @@ export const CalendarioService = {
     }
   },
 
-  // Crear un nuevo partido
+  // Crear un nuevo partido - USANDO apiClient
   createMatch: async (payload: CreateMatchPayload): Promise<CreatedMatchResponse> => {
     try {
-      const token = getValidToken();
+      console.log('🚀 CalendarService - Creating match with payload:', payload);
       
-      console.log('🚀 Creating match with payload:', payload);
-      
-      const response = await axios.post<CreatedMatchResponse>(
-        `${API_BASE_URL}/tournaments/matches/calendar`, 
-        payload,
-        { 
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          } 
-        }
+      const response = await apiClient.post<CreatedMatchResponse>(
+        '/tournaments/matches/calendar', 
+        payload
       );
       
-      console.log('✅ Match created successfully:', response.data);
+      console.log('✅ CalendarService - Match created successfully:', response.data);
       return response.data;
     } catch (error) {
-      console.error('❌ Error creating match:', error);
+      console.error('❌ CalendarService - Error creating match:', error);
       if (axios.isAxiosError(error)) {
-        console.error('🔍 Create match error details:', {
+        console.error('🔍 CalendarService - Create match error details:', {
           status: error.response?.status,
           statusText: error.response?.statusText,
           data: error.response?.data,
@@ -170,19 +225,12 @@ export const CalendarioService = {
     }
   },
 
-  // Obtener todos los torneos - con manejo de diferentes estructuras
+  // Obtener todos los torneos - USANDO apiClient
   getTournaments: async (): Promise<Tournament[]> => {
     try {
-      const token = getValidToken();
+      const response = await apiClient.get('/tournaments');
       
-      const response = await axios.get(`${API_BASE_URL}/tournaments`, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-      });
-      
-      console.log('🏆 Tournaments raw response:', response.data);
+      console.log('🏆 CalendarService - Tournaments raw response:', response.data);
       
       // Manejar diferentes estructuras de respuesta
       let tournamentsData = response.data;
@@ -199,12 +247,12 @@ export const CalendarioService = {
       
       // Asegurar que siempre sea un array
       const result = Array.isArray(tournamentsData) ? tournamentsData : [];
-      console.log(`✅ Loaded ${result.length} tournaments`);
+      console.log(`✅ CalendarService - Loaded ${result.length} tournaments`);
       return result;
     } catch (error) {
-      console.error('❌ Error fetching tournaments:', error);
+      console.error('❌ CalendarService - Error fetching tournaments:', error);
       if (axios.isAxiosError(error)) {
-        console.error('🔍 Tournaments error details:', {
+        console.error('🔍 CalendarService - Tournaments error details:', {
           status: error.response?.status,
           statusText: error.response?.statusText,
           data: error.response?.data,
@@ -216,21 +264,14 @@ export const CalendarioService = {
     }
   },
 
-  // Obtener equipos por torneo - MEJORADO
+  // Obtener equipos por torneo - USANDO apiClient
   getTeamsByTournament: async (tournamentId: number): Promise<Team[]> => {
     try {
-      const token = getValidToken();
+      console.log(`👥 CalendarService - Fetching teams for tournament ${tournamentId}`);
       
-      console.log(`👥 Fetching teams for tournament ${tournamentId}`);
+      const response = await apiClient.get(`/tournaments/${tournamentId}/teams`);
       
-      const response = await axios.get(`${API_BASE_URL}/tournaments/${tournamentId}/teams`, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-      });
-      
-      console.log(`✅ Teams for tournament ${tournamentId}:`, response.data);
+      console.log(`✅ CalendarService - Teams for tournament ${tournamentId}:`, response.data);
       
       let teamsData = response.data;
       
@@ -244,19 +285,19 @@ export const CalendarioService = {
       }
       
       const result = Array.isArray(teamsData) ? teamsData : [];
-      console.log(`✅ Loaded ${result.length} teams for tournament ${tournamentId}`);
+      console.log(`✅ CalendarService - Loaded ${result.length} teams for tournament ${tournamentId}`);
       
       // Verificar la estructura de los equipos
       if (result.length > 0) {
-        console.log('🔍 First team structure:', result[0]);
-        console.log('🔍 Team keys:', Object.keys(result[0]));
+        console.log('🔍 CalendarService - First team structure:', result[0]);
+        console.log('🔍 CalendarService - Team keys:', Object.keys(result[0]));
       }
       
       return result;
     } catch (error) {
-      console.error(`❌ Error fetching teams for tournament ${tournamentId}:`, error);
+      console.error(`❌ CalendarService - Error fetching teams for tournament ${tournamentId}:`, error);
       if (axios.isAxiosError(error)) {
-        console.error('🔍 Teams error details:', {
+        console.error('🔍 CalendarService - Teams error details:', {
           status: error.response?.status,
           statusText: error.response?.statusText,
           data: error.response?.data,
@@ -267,29 +308,21 @@ export const CalendarioService = {
     }
   },
 
-  // Obtener detalles completos de un equipo específico - MEJORADO CON FALLBACK
+  // Obtener detalles completos de un equipo específico - USANDO apiClient
   getTeamDetails: async (tournamentId: number, teamId: number): Promise<Team> => {
     try {
-      const token = getValidToken();
+      console.log('🔍 CalendarService - Fetching team details with:', { tournamentId, teamId });
       
-      console.log('🔍 Fetching team details with:', { tournamentId, teamId, token: !!token });
-      
-      const response = await axios.get<Team>(
-        `${API_BASE_URL}/tournaments/${tournamentId}/teams/${teamId}`,
-        { 
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          } 
-        }
+      const response = await apiClient.get<Team>(
+        `/tournaments/${tournamentId}/teams/${teamId}`
       );
       
-      console.log('✅ Team details response:', response.data);
+      console.log('✅ CalendarService - Team details response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('❌ Error fetching team details:', error);
+      console.error('❌ CalendarService - Error fetching team details:', error);
       if (axios.isAxiosError(error)) {
-        console.error('🔍 Team details error details:', {
+        console.error('🔍 CalendarService - Team details error details:', {
           status: error.response?.status,
           statusText: error.response?.statusText,
           data: error.response?.data,
@@ -298,12 +331,12 @@ export const CalendarioService = {
         
         // Si es error 401, el token podría estar expirado
         if (error.response?.status === 401) {
-          console.warn('⚠️ Authentication error - token might be expired or invalid');
+          console.warn('⚠️ CalendarService - Authentication error - token might be expired or invalid');
         }
         
         // Si es error 404, el endpoint podría no existir
         if (error.response?.status === 404) {
-          console.warn('⚠️ Endpoint not found - team details endpoint might not be available');
+          console.warn('⚠️ CalendarService - Endpoint not found - team details endpoint might not be available');
           
           // Crear un equipo por defecto con estadios vacíos
           const fallbackTeam: Team = {
@@ -316,7 +349,7 @@ export const CalendarioService = {
             dateCreated: new Date().toISOString()
           };
           
-          console.log('🔄 Returning fallback team data:', fallbackTeam);
+          console.log('🔄 CalendarService - Returning fallback team data:', fallbackTeam);
           return fallbackTeam;
         }
       }
@@ -336,7 +369,7 @@ export const CalendarioService = {
         secondaryStadium: teamDetails.secondaryStadium || ''
       };
     } catch (error) {
-      console.warn('⚠️ Could not fetch team details, using fallback stadiums');
+      console.warn('⚠️ CalendarService - Could not fetch team details, using fallback stadiums');
       // Si falla, retornar estadios vacíos
       return {
         mainStadium: '',
@@ -345,40 +378,30 @@ export const CalendarioService = {
     }
   },
 
-  // Obtener árbitros
+  // Obtener árbitros - USANDO apiClient
   getReferees: async (): Promise<Referee[]> => {
     try {
-      const token = getValidToken();
+      const response = await apiClient.get<RefereesResponse>('/referees');
       
-      const response = await axios.get<RefereesResponse>(
-        `${API_BASE_URL}/referees`,
-        { 
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          } 
-        }
-      );
-      
-      console.log('✅ Referees response:', response.data);
+      console.log('✅ CalendarService - Referees response:', response.data);
       
       let refereesData = response.data;
       
       // Extraer el array de referees de la respuesta
       if (refereesData && typeof refereesData === 'object' && refereesData.referees) {
         const result = Array.isArray(refereesData.referees) ? refereesData.referees : [];
-        console.log(`✅ Loaded ${result.length} referees`);
+        console.log(`✅ CalendarService - Loaded ${result.length} referees`);
         return result;
       }
       
       // Si la respuesta ya es un array
       const result = Array.isArray(refereesData) ? refereesData : [];
-      console.log(`✅ Loaded ${result.length} referees`);
+      console.log(`✅ CalendarService - Loaded ${result.length} referees`);
       return result;
     } catch (error) {
-      console.error('❌ Error fetching referees:', error);
+      console.error('❌ CalendarService - Error fetching referees:', error);
       if (axios.isAxiosError(error)) {
-        console.error('🔍 Referees error details:', {
+        console.error('🔍 CalendarService - Referees error details:', {
           status: error.response?.status,
           statusText: error.response?.statusText,
           data: error.response?.data,
@@ -387,7 +410,7 @@ export const CalendarioService = {
       }
       // Si hay error 404 (no hay árbitros), retornar array vacío
       if (axios.isAxiosError(error) && error.response?.status === 404) {
-        console.log('ℹ️ No referees found, returning empty array');
+        console.log('ℹ️ CalendarService - No referees found, returning empty array');
         return [];
       }
       return [];

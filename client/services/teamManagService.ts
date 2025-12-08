@@ -1,155 +1,19 @@
 import axios from "axios";
 import { getToken } from "./authService";
 
-const API_BASE = "http://localhost:8085/api";
+const API_URL = "http://localhost:8085/api/tournaments";
 
-// =======================
-// 🔹 CONFIGURACIÓN AXIOS CON DEBUG EXTENDIDO
-// =======================
-const tournamentsApiClient = axios.create({
-  baseURL: `${API_BASE}/tournaments`,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-const playersApiClient = axios.create({
-  baseURL: `${API_BASE}/players`,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-// =======================
-// 🔹 INTERCEPTORES COMPARTIDOS
-// =======================
-const setupInterceptor = (apiClient: any, clientName: string) => {
-  // Interceptor de request CON DEBUG COMPLETO
-  apiClient.interceptors.request.use(
-    (config: any) => {
-      let token = getToken();
-      const tokenSource = token ? 'getToken()' : 'localStorage';
-      
-      if (!token) {
-        token = localStorage.getItem("token");
-      }
-
-      if (token) {
-        let cleanToken = token.replace(/^"(.*)"$/, '$1');
-        if (cleanToken.startsWith("Bearer ")) {
-          cleanToken = cleanToken.slice(7).trim();
-        }
-        
-        // 🔍 DEBUG EXTENDIDO DEL TOKEN
-        console.group(`🔐 ${clientName} Request Interceptor - ${config.method?.toUpperCase()} ${config.url}`);
-        console.log('📋 Token source:', tokenSource);
-        console.log('🔢 Token length:', cleanToken.length);
-        console.log('👀 Token preview:', cleanToken.substring(0, 20) + '...');
-        console.log('🎯 Endpoint:', config.url);
-        console.log('📝 Method:', config.method);
-        console.groupEnd();
-        
-        // Verificar que el token no esté vacío
-        if (cleanToken && cleanToken !== "null" && cleanToken !== "undefined") {
-          config.headers.Authorization = `Bearer ${cleanToken}`;
-          console.log('✅ Token configurado en headers');
-        } else {
-          console.warn('⚠️ Token inválido o vacío después de limpieza');
-          console.log('🔍 Token después de limpieza:', cleanToken);
-        }
-      } else {
-        console.warn('⚠️ No se encontró token en ninguna fuente');
-        console.log('🔍 localStorage token:', localStorage.getItem("token"));
-        console.log('🔍 getToken():', getToken());
-      }
-      
-      // 🔍 DEBUG de headers completos
-      console.log('📨 Headers finales:', {
-        'Content-Type': config.headers['Content-Type'],
-        'Authorization': config.headers['Authorization'] ? '***PRESENTE***' : 'AUSENTE'
-      });
-      
-      return config;
-    },
-    (error: any) => {
-      console.error(`❌ Error en ${clientName} request interceptor:`, error);
-      return Promise.reject(error);
-    }
-  );
-
-  // Interceptor de respuesta CON DEBUG MEJORADO
-  apiClient.interceptors.response.use(
-    (response: any) => {
-      console.group(`✅ ${clientName} Response Success - ${response.config.method?.toUpperCase()} ${response.config.url}`);
-      console.log('📊 Status:', response.status);
-      console.log('📦 Data preview:', response.data ? 'DATA_RECIBIDA' : 'SIN_DATA');
-      if (response.config.method?.toUpperCase() === 'GET') {
-        console.log('🔢 Cantidad de elementos:', Array.isArray(response.data) ? response.data.length : 'N/A');
-      }
-      console.groupEnd();
-      return response;
-    },
-    (error: any) => {
-      const status = error.response?.status;
-      const url = error.config?.url;
-      const method = error.config?.method;
-      
-      console.group(`❌ ${clientName} Response Error - ${method?.toUpperCase()} ${url}`);
-      console.log('📊 Status:', status);
-      console.log('🔍 URL:', url);
-      console.log('📝 Method:', method);
-      console.log('📄 Error data:', error.response?.data);
-      console.log('🔧 Config:', {
-        headers: error.config?.headers,
-        baseURL: error.config?.baseURL,
-        data: error.config?.data
-      });
-      
-      if (status === 401) {
-        console.error('🔐 ERROR 401 DETECTADO - Posibles causas:');
-        console.log('   • Token expirado');
-        console.log('   • Token inválido');
-        console.log('   • Falta de permisos');
-        console.log('   • Problema de CORS');
-        console.log('   • Endpoint requiere autenticación diferente');
-        
-        // 🔍 DEBUG ESPECÍFICO PARA 401
-        const authHeader = error.config?.headers?.Authorization;
-        console.log('🔑 Header Authorization enviado:', authHeader ? 'PRESENTE' : 'AUSENTE');
-        if (authHeader) {
-          console.log('   📏 Longitud:', authHeader.length);
-          console.log('   👀 Preview:', authHeader.substring(0, 30) + '...');
-        }
-      }
-      
-      console.groupEnd();
-      
-      return Promise.reject(error);
-    }
-  );
-};
-
-setupInterceptor(tournamentsApiClient, 'Tournaments');
-setupInterceptor(playersApiClient, 'Players');
-
-// =======================
-// 🔹 MODELOS FRONTEND
-// =======================
+// Interfaces FRONTEND (lo que usa tu componente)
 export interface Player {
-  id?: number;
+  id?: string;              // opcional, lo genera backend
   name: string;
-  position: string;
+  position: string;         // código del enum (ej: "PO")
   dorsalNumber: number;
-  age?: number;
-  starter?: boolean;
-  goals?: number;
-  yellowCards?: number;
-  redCards?: number;
-  status?: 'ACTIVE' | 'INACTIVE';
+  age?: number;             // según el swagger también lo pide
 }
 
 export interface Team {
-  id: number;
+  id?: string;
   name: string;
   coach: string;
   category: string;
@@ -158,19 +22,27 @@ export interface Team {
   players: Player[];
 }
 
+// Tipo auxiliar para creación de equipos (sin id)
+export type NewTeamData = Omit<Team, "id">;
+
+// 🔹 Posiciones según enum PlayerPosition.java
 export const positions = [
-  { value: "PO", label: "Portero" },
-  { value: "DF", label: "Defensa" },
-  { value: "MC", label: "Mediocampista" },
-  { value: "DL", label: "Delantero" },
+  { label: "Portero", value: "PO" },
+  { label: "Defensa izquierdo", value: "DFI" },
+  { label: "Defensa central", value: "DFC" },
+  { label: "Defensa derecho", value: "DFD" },
+  { label: "Mediocampista defensivo", value: "MCD" },
+  { label: "Mediocampista central", value: "MC" },
+  { label: "Mediocampista ofensivo", value: "MCO" },
+  { label: "Extremo izquierdo", value: "EI" },
+  { label: "Delantero centro", value: "DC" },
+  { label: "Extremo derecho", value: "ED" },
 ];
 
-// =======================
-// 🔹 MAPEO DE CATEGORÍAS CORREGIDO
-// =======================
+// 🔹 Mapeo de categorías frontend → backend
 const categoryMapping: { [key: string]: string } = {
   'sub-15': 'SUB15',
-  'sub-17': 'SUB17', 
+  'sub-17': 'SUB17',
   'sub-20': 'SUB20',
   'libre': 'LIBRE',
   'sub-13': 'SUB13'
@@ -180,478 +52,391 @@ const reverseCategoryMapping: { [key: string]: string } = {
   'SUB13': 'sub-13',
   'SUB15': 'sub-15',
   'SUB17': 'sub-17',
-  'SUB20': 'sub-20', 
+  'SUB20': 'sub-20',
   'LIBRE': 'libre'
 };
 
-// =======================
-// 🔹 MODELOS BACKEND PARA JUGADORES
-// =======================
-export interface BackendPlayer {
-  idPlayer?: number;
+// 🔹 Interfaces para el BACKEND (lo que realmente devuelve)
+interface BackendPlayer {
+  id?: number;
   name: string;
-  position: string;
-  starter?: boolean;
-  shirtNumber: number;
-  goals?: number;
-  yellowCards?: number;
-  redCards?: number;
-  status?: 'ACTIVE' | 'INACTIVE';
-}
-
-export interface UpdatePlayerRequest {
-  idPlayer: number;
-  name: string;
-  position: string;
-  starter?: boolean;
-  shirtNumber: number;
-  status?: 'ACTIVE' | 'INACTIVE';
-}
-
-// =======================
-// 🔹 REQUESTS BACKEND CORREGIDOS
-// =======================
-export interface CreatePlayerRequest {
-  name: string;
+  playerPosition?: string;    // El backend usa playerPosition
+  position?: string;          // O también position
+  shirtNumber?: number;       // El backend usa shirtNumber
+  dorsalNumber?: number;      // O también dorsalNumber
   age?: number;
-  playerPosition: string;
-  shirtNumber: number;
 }
 
-export interface CreateTeamRequest {
-  teamName: string;
-  coachName: string;
-  teamCategory: string;
-  mainStadium: string;
+interface BackendTeam {
+  id?: number;
+  teamId?: number;
+  teamName?: string;          // El backend usa teamName
+  name?: string;              // O también name
+  coachName?: string;         // El backend usa coachName
+  coach?: string;             // O también coach
+  teamCategory?: string;      // El backend usa teamCategory
+  category?: string;          // O también category
+  mainStadium?: string;       // El backend usa mainStadium
+  mainField?: string;         // O también mainField
   secondaryStadium?: string;
-  teamPlayers: CreatePlayerRequest[];
+  secondaryField?: string;
+  teamPlayers?: BackendPlayer[]; // El backend usa teamPlayers
+  players?: BackendPlayer[];
 }
 
-export interface UpdateTeamRequest {
-  name: string;
-  coach: string;
-  teamCategory: string;
-  mainStadium: string;
-  secondaryStadium?: string;
+// 🔹 Función para generar IDs únicos
+function generateUniqueId(prefix: string = ''): string {
+  return `${prefix}${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// =======================
-// 🔹 SERVICE METHODS COMPLETOS
-// =======================
-class TeamService {
+// 🔹 Mapeo de datos del backend al frontend (CORREGIDO)
+function mapBackendTeamToFrontend(backendTeam: BackendTeam, index: number = 0): Team {
+  // Extraer ID
+  // DESPUÉS (usa index + 1 que empieza en 1):
+  const id = (backendTeam.teamId || backendTeam.id || (index + 1)).toString();
 
-  // =======================
-  // 🔹 MÉTODOS DE EQUIPOS
-  // =======================
+  // Mapear nombre (backend usa teamName, frontend usa name)
+  const name = backendTeam.teamName || backendTeam.name || `Equipo ${index + 1}`;
 
-  // GET all teams - CON DEBUG MEJORADO
-  async getTeams(idTournament: number): Promise<Team[]> {
-    try {
-      console.group(`🔄 GET Teams - Tournament ${idTournament}`);
-      console.log('🎯 Endpoint:', `/${idTournament}/teams`);
-      
-      const res = await tournamentsApiClient.get(`/${idTournament}/teams`);
-      console.log('📦 Respuesta completa del backend:', res.data);
-      
-      let teamsData = res.data;
-      
-      if (teamsData && typeof teamsData === 'object') {
-        if (Array.isArray(teamsData)) {
-          teamsData = teamsData;
-          console.log('📊 Datos son array directo');
-        } else if (teamsData.teams && Array.isArray(teamsData.teams)) {
-          teamsData = teamsData.teams;
-          console.log('📊 Datos en propiedad teams');
-        } else if (teamsData.referees && Array.isArray(teamsData.referees)) {
-          console.warn('⚠️ El backend está devolviendo referees en lugar de teams');
-          teamsData = teamsData.referees;
-        } else {
-          teamsData = Object.values(teamsData).find(val => Array.isArray(val)) || [];
-          console.log('📊 Datos encontrados en valores del objeto');
-        }
-      }
+  // Mapear coach (backend usa coachName, frontend usa coach)
+  const coach = backendTeam.coachName || backendTeam.coach || 'Sin DT';
 
-      if (!Array.isArray(teamsData)) {
-        console.warn('⚠️ teamsData no es un array:', teamsData);
-        console.groupEnd();
-        return [];
-      }
+  // Mapear categoría (backend usa teamCategory, frontend usa category)
+  const backendCategory = backendTeam.teamCategory || backendTeam.category || 'LIBRE';
+  const category = reverseCategoryMapping[backendCategory] || 'libre';
 
-      // 🔹 CORRECCIÓN CRÍTICA: Eliminar equipos duplicados por ID
-      const uniqueTeamsMap = new Map();
-      
-      teamsData.forEach((backendTeam: any, index: number) => {
-        const teamId = backendTeam.teamId || backendTeam.id || index + 1;
-        
-        // Si ya existe un equipo con este ID, no lo agregamos
-        if (!uniqueTeamsMap.has(teamId)) {
-          const backendCategory = backendTeam.teamCategory || backendTeam.category;
-          const frontendCategory = reverseCategoryMapping[backendCategory] || 'libre';
+  // Mapear cancha principal (backend usa mainStadium, frontend usa mainField)
+  const mainField = backendTeam.mainStadium || backendTeam.mainField || 'Sin cancha';
 
-          const mappedTeam = {
-            id: teamId,
-            name: backendTeam.teamName || backendTeam.name || `Equipo ${teamId}`,
-            coach: backendTeam.coachName || backendTeam.coach || 'Sin DT asignado',
-            category: frontendCategory,
-            mainField: backendTeam.mainStadium || backendTeam.mainField || 'Cancha principal',
-            secondaryField: backendTeam.secondaryStadium || backendTeam.secondaryField || '',
-            players: Array.isArray(backendTeam.teamPlayers) ? backendTeam.teamPlayers.map((p: any) => ({
-              id: p.id || Date.now() + Math.random(),
-              name: p.name || 'Jugador sin nombre',
-              position: p.playerPosition || p.position || 'DF',
-              dorsalNumber: p.shirtNumber || p.dorsalNumber || 0,
-              age: p.age || 18
-            })) : []
-          };
+  // Mapear cancha secundaria
+  const secondaryField = backendTeam.secondaryStadium || backendTeam.secondaryField || '';
 
-          uniqueTeamsMap.set(teamId, mappedTeam);
-          console.log(`🔍 Equipo mapeado [${index}]:`, mappedTeam.name, '- ID:', mappedTeam.id);
-        } else {
-          console.warn(`⚠️ Equipo duplicado con ID ${teamId} filtrado`);
-        }
-      });
+  // Mapear jugadores (backend usa teamPlayers, frontend usa players)
+  const backendPlayers = backendTeam.teamPlayers || backendTeam.players || [];
 
-      const mappedTeams = Array.from(uniqueTeamsMap.values());
-      console.log('✅ Equipos mapeados exitosamente (sin duplicados):', mappedTeams.length);
-      console.groupEnd();
-      return mappedTeams;
+  // 🔥 CORRECCIÓN: Generar IDs únicos para cada jugador
+  const players: Player[] = backendPlayers.map((backendPlayer: BackendPlayer, playerIndex: number) => {
+    // Usar el ID del backend si existe, o generar uno único
+    const playerId = backendPlayer.id
+      ? `backend-player-${backendPlayer.id}`
+      : `team-${id}-player-${playerIndex}-${generateUniqueId()}`;
 
-    } catch (error: any) {
-      console.error('❌ Error en getTeams:', error);
-      console.groupEnd();
-      throw error;
-    }
-  }
-
-  // GET team by id - CORREGIDO SEGÚN DOCUMENTACIÓN BACKEND
-  async getTeam(idTournament: number, idTeam: number): Promise<Team> {
-    try {
-      console.group(`🔍 GET Team - Tournament ${idTournament}, Team ${idTeam}`);
-      const res = await tournamentsApiClient.get(`/${idTournament}/teams/${idTeam}`);
-      const backendTeam = res.data;
-
-      console.log('📦 Respuesta de equipo individual:', backendTeam);
-
-      // 🔹 CORRECCIÓN: Según documentación, el backend usa "category" no "teamCategory"
-      const backendCategory = backendTeam.category || backendTeam.teamCategory;
-      const frontendCategory = reverseCategoryMapping[backendCategory] || 'libre';
-
-      const result = {
-        id: backendTeam.teamId || backendTeam.id || idTeam,
-        name: backendTeam.name || backendTeam.teamName,
-        coach: backendTeam.coach || backendTeam.coachName,
-        category: frontendCategory,
-        mainField: backendTeam.mainStadium || backendTeam.mainField,
-        secondaryField: backendTeam.secondaryStadium || backendTeam.secondaryField || '',
-        players: [] // Los jugadores se cargan por separado
-      };
-      
-      console.log('✅ Equipo mapeado (sin jugadores):', result);
-      console.groupEnd();
-      return result;
-    } catch (error: any) {
-      console.error('❌ Error en getTeam:', error);
-      console.groupEnd();
-      throw error;
-    }
-  }
-
-  // CREATE team - CON DEBUG EXTENDIDO
-  async createTeam(idTournament: number, team: Omit<Team, "id">) {
-    try {
-      console.group(`📝 CREATE Team - Tournament ${idTournament}`);
-      const backendCategory = categoryMapping[team.category] || 'LIBRE';
-      
-      const payload: CreateTeamRequest = {
-        teamName: team.name,
-        coachName: team.coach,
-        teamCategory: backendCategory,
-        mainStadium: team.mainField,
-        secondaryStadium: team.secondaryField?.trim() || undefined,
-        teamPlayers: team.players.map(p => ({
-          name: p.name,
-          age: p.age || 18,
-          playerPosition: p.position,
-          shirtNumber: p.dorsalNumber
-        }))
-      };
-
-      console.log('📤 Payload enviado:', payload);
-      console.log('🎯 Endpoint:', `/${idTournament}/teams`);
-      
-      const res = await tournamentsApiClient.post(`/${idTournament}/teams`, payload);
-      
-      console.log('✅ Equipo creado exitosamente:', res.data);
-      console.groupEnd();
-      return res.data;
-    } catch (error: any) {
-      console.error('❌ Error en createTeam:', error);
-      console.groupEnd();
-      throw error;
-    }
-  }
-
-  // UPDATE team - CORREGIDO CON DEBUG MEJORADO
-  async updateTeam(idTournament: number, idTeam: number, data: UpdateTeamRequest) {
-    try {
-      console.group(`✏️ UPDATE Team - Tournament ${idTournament}, Team ${idTeam}`);
-      
-      // 🔹 DEBUG ESPECIAL PARA INVESTIGAR ERROR 401
-      console.log('🔐 TOKEN VERIFICATION FOR PUT:');
-      const currentToken = getToken() || localStorage.getItem("token");
-      console.log('   Token disponible:', currentToken ? 'SI' : 'NO');
-      if (currentToken) {
-        const cleanToken = currentToken.replace(/^"(.*)"$/, '$1').replace('Bearer ', '');
-        console.log('   Longitud token:', cleanToken.length);
-        console.log('   Preview token:', cleanToken.substring(0, 30) + '...');
-      }
-      
-      // Mapear categoría frontend → backend
-      const backendCategory = categoryMapping[data.teamCategory] || data.teamCategory;
-      
-      // 🔹 CORRECCIÓN: Asegurar que secondaryStadium no sea undefined
-      const payload = {
-        name: data.name,
-        coach: data.coach,
-        teamCategory: backendCategory,
-        mainStadium: data.mainStadium,
-        secondaryStadium: data.secondaryStadium?.trim() || ""
-      };
-
-      console.log('📤 Payload de actualización:', payload);
-      console.log('🎯 Endpoint:', `/${idTournament}/teams/${idTeam}`);
-      console.log('🔍 Datos originales:', data);
-      
-      const res = await tournamentsApiClient.put(`/${idTournament}/teams/${idTeam}`, payload);
-      
-      console.log('✅ Equipo actualizado exitosamente:', res.data);
-      console.groupEnd();
-      return res.data;
-    } catch (error: any) {
-      console.error('❌ Error en updateTeam:', error);
-      console.groupEnd();
-      throw error;
-    }
-  }
-
-  // DELETE team - CORREGIDO CON MEJOR MANEJO DE RESPUESTA
-  async deleteTeam(idTournament: number, idTeam: number) {
-    try {
-      console.group(`🗑️ DELETE Team - Tournament ${idTournament}, Team ${idTeam}`);
-      console.log('🎯 Endpoint:', `/${idTournament}/teams/${idTeam}`);
-      
-      const res = await tournamentsApiClient.delete(`/${idTournament}/teams/${idTeam}`);
-      
-      console.log('✅ Respuesta de eliminación:', res.data);
-      console.log('   • Elemento eliminado ID:', res.data?.elementId);
-      console.log('   • Nombre del elemento:', res.data?.elementName);
-      console.groupEnd();
-      
-      return {
-        success: true,
-        deletedId: res.data?.elementId,
-        deletedName: res.data?.elementName,
-        deletionDate: res.data?.deletionElementDate
-      };
-    } catch (error: any) {
-      console.error('❌ Error en deleteTeam:', error);
-      console.groupEnd();
-      throw error;
-    }
-  }
-
-  // =======================
-  // 🔹 MÉTODOS DE JUGADORES
-  // =======================
-
-  // GET players by team
-  async getPlayers(idTournament: number, idTeam: number): Promise<Player[]> {
-    try {
-      console.group(`👥 GET Players - Tournament ${idTournament}, Team ${idTeam}`);
-      console.log('🎯 Endpoint:', `/${idTournament}/teams/${idTeam}`);
-      
-      const res = await playersApiClient.get(`/${idTournament}/teams/${idTeam}`);
-      console.log('📦 Respuesta de jugadores:', res.data);
-      
-      if (!Array.isArray(res.data)) {
-        console.warn('⚠️ Los jugadores no son un array:', res.data);
-        console.groupEnd();
-        return [];
-      }
-
-      const mappedPlayers = res.data.map((backendPlayer: BackendPlayer) => ({
-        id: backendPlayer.idPlayer,
-        name: backendPlayer.name,
-        position: backendPlayer.position,
-        dorsalNumber: backendPlayer.shirtNumber,
-        starter: backendPlayer.starter || false,
-        goals: backendPlayer.goals || 0,
-        yellowCards: backendPlayer.yellowCards || 0,
-        redCards: backendPlayer.redCards || 0,
-        status: backendPlayer.status || 'ACTIVE'
-      }));
-
-      console.log('✅ Jugadores mapeados:', mappedPlayers.length);
-      console.groupEnd();
-      return mappedPlayers;
-    } catch (error: any) {
-      console.error('❌ Error en getPlayers:', error);
-      console.groupEnd();
-      throw error;
-    }
-  }
-
-  // GET complete team with players
-  async getCompleteTeam(idTournament: number, idTeam: number): Promise<Team> {
-    try {
-      console.group(`🔍 GET Complete Team - Tournament ${idTournament}, Team ${idTeam}`);
-      
-      // Obtener información del equipo
-      const teamPromise = this.getTeam(idTournament, idTeam);
-      // Obtener jugadores del equipo
-      const playersPromise = this.getPlayers(idTournament, idTeam);
-      
-      const [team, players] = await Promise.all([teamPromise, playersPromise]);
-      
-      const completeTeam = {
-        ...team,
-        players: players
-      };
-      
-      console.log('✅ Equipo completo obtenido:', {
-        id: completeTeam.id,
-        name: completeTeam.name,
-        jugadores: completeTeam.players.length
-      });
-      console.groupEnd();
-      return completeTeam;
-    } catch (error: any) {
-      console.error('❌ Error en getCompleteTeam:', error);
-      console.groupEnd();
-      throw error;
-    }
-  }
-
-  // UPDATE player
-  async updatePlayer(idTournament: number, idTeam: number, playerData: UpdatePlayerRequest) {
-    try {
-      console.group(`✏️ UPDATE Player - Tournament ${idTournament}, Team ${idTeam}, Player ${playerData.idPlayer}`);
-      console.log('🎯 Endpoint:', `/${idTournament}/teams/${idTeam}`);
-      
-      const payload = {
-        idPlayer: playerData.idPlayer,
-        name: playerData.name,
-        position: playerData.position,
-        starter: playerData.starter || false,
-        shirtNumber: playerData.shirtNumber,
-        status: playerData.status || 'ACTIVE'
-      };
-
-      console.log('📤 Payload para actualizar jugador:', payload);
-      
-      const res = await playersApiClient.put(`/${idTournament}/teams/${idTeam}`, payload);
-      
-      console.log('✅ Jugador actualizado exitosamente:', res.data);
-      console.groupEnd();
-      return res.data;
-    } catch (error: any) {
-      console.error('❌ Error en updatePlayer:', error);
-      console.groupEnd();
-      throw error;
-    }
-  }
-
-  // CREATE player (asumiendo que es el mismo endpoint que UPDATE basado en presencia de idPlayer)
-  async createPlayer(idTournament: number, idTeam: number, playerData: Omit<UpdatePlayerRequest, 'idPlayer'>) {
-    try {
-      console.group(`➕ CREATE Player - Tournament ${idTournament}, Team ${idTeam}`);
-      console.log('🎯 Endpoint:', `/${idTournament}/teams/${idTeam}`);
-      
-      // Para crear, enviamos sin idPlayer (el backend lo asignará)
-      const payload = {
-        name: playerData.name,
-        position: playerData.position,
-        starter: playerData.starter || false,
-        shirtNumber: playerData.shirtNumber,
-        status: playerData.status || 'ACTIVE'
-      };
-
-      console.log('📤 Payload para crear jugador:', payload);
-      
-      const res = await playersApiClient.put(`/${idTournament}/teams/${idTeam}`, payload);
-      
-      console.log('✅ Jugador creado exitosamente:', res.data);
-      console.groupEnd();
-      return res.data;
-    } catch (error: any) {
-      console.error('❌ Error en createPlayer:', error);
-      console.groupEnd();
-      throw error;
-    }
-  }
-
-  // DELETE player (basado en la documentación, parece ser el mismo endpoint PUT)
-  async deletePlayer(idTournament: number, idTeam: number, playerId: number) {
-    try {
-      console.group(`🗑️ DELETE Player - Tournament ${idTournament}, Team ${idTeam}, Player ${playerId}`);
-      console.log('🎯 Endpoint:', `/${idTournament}/teams/${idTeam}`);
-      
-      // Para eliminar, enviamos con status INACTIVE
-      const payload = {
-        idPlayer: playerId,
-        status: 'INACTIVE'
-      };
-
-      console.log('📤 Payload para desactivar jugador:', payload);
-      
-      const res = await playersApiClient.put(`/${idTournament}/teams/${idTeam}`, payload);
-      
-      console.log('✅ Jugador marcado como INACTIVE:', res.data);
-      console.groupEnd();
-      
-      return {
-        success: true,
-        playerId: playerId,
-        status: 'INACTIVE'
-      };
-    } catch (error: any) {
-      console.error('❌ Error en deletePlayer:', error);
-      console.groupEnd();
-      throw error;
-    }
-  }
-
-  // 🔍 MÉTODO DE DIAGNÓSTICO - Verificar token actual
-  async diagnoseToken() {
-    console.group('🔍 DIAGNÓSTICO DE TOKEN');
-    const tokenFromGetToken = getToken();
-    const tokenFromLocalStorage = localStorage.getItem("token");
-    
-    console.log('📋 Fuentes de token:');
-    console.log('   • getToken():', tokenFromGetToken ? 'PRESENTE' : 'AUSENTE');
-    console.log('   • localStorage:', tokenFromLocalStorage ? 'PRESENTE' : 'AUSENTE');
-    
-    if (tokenFromGetToken) {
-      const cleanToken = tokenFromGetToken.replace(/^"(.*)"$/, '$1').replace('Bearer ', '');
-      console.log('   • Longitud getToken():', cleanToken.length);
-      console.log('   • Preview getToken():', cleanToken.substring(0, 30) + '...');
-    }
-    
-    if (tokenFromLocalStorage) {
-      const cleanToken = tokenFromLocalStorage.replace(/^"(.*)"$/, '$1').replace('Bearer ', '');
-      console.log('   • Longitud localStorage:', cleanToken.length);
-      console.log('   • Preview localStorage:', cleanToken.substring(0, 30) + '...');
-    }
-    
-    console.groupEnd();
-    
     return {
-      fromGetToken: tokenFromGetToken ? tokenFromGetToken.substring(0, 50) + '...' : null,
-      fromLocalStorage: tokenFromLocalStorage ? tokenFromLocalStorage.substring(0, 50) + '...' : null,
-      bothAvailable: !!tokenFromGetToken && !!tokenFromLocalStorage,
-      sameToken: tokenFromGetToken === tokenFromLocalStorage
+      id: playerId,
+      name: backendPlayer.name || `Jugador ${playerIndex + 1}`,
+      position: backendPlayer.playerPosition || backendPlayer.position || 'DF',
+      dorsalNumber: backendPlayer.shirtNumber || backendPlayer.dorsalNumber || playerIndex + 1,
+      age: backendPlayer.age || 18
     };
+  });
+
+  return {
+    id: id,
+    name,
+    coach,
+    category,
+    mainField,
+    secondaryField,
+    players
+  };
+}
+
+// 🔹 Mapeo de datos del frontend al backend (para crear/actualizar)
+function mapFrontendTeamToBackend(team: NewTeamData): any {
+  const backendCategory = categoryMapping[team.category] || 'LIBRE';
+
+  // 🔥 CORRECCIÓN: Filtrar IDs temporales y mantener solo los campos necesarios
+  return {
+    teamName: team.name,
+    coachName: team.coach,
+    teamCategory: backendCategory,
+    mainStadium: team.mainField,
+    secondaryStadium: team.secondaryField || undefined,
+    teamPlayers: team.players.map(player => ({
+      name: player.name,
+      age: player.age || 18,
+      playerPosition: player.position,
+      shirtNumber: player.dorsalNumber
+      // No enviamos ID si es temporal, el backend generará uno nuevo
+    }))
+  };
+}
+
+// Servicios API con debugging y mapeo CORREGIDO
+async function getTeams(idTournament: string): Promise<Team[]> {
+  console.log("🔍 [DEBUG getTeams] Iniciando con idTournament:", idTournament);
+
+  if (!idTournament) {
+    console.error("❌ [DEBUG getTeams] ERROR: idTournament es null/undefined");
+    throw new Error("El idTournament es requerido");
+  }
+
+  const token = getToken();
+  console.log("🔍 [DEBUG getTeams] Token disponible:", token ? "Sí" : "No");
+
+  const url = `${API_URL}/${idTournament}/teams`;
+  console.log("🔍 [DEBUG getTeams] URL completa:", url);
+
+  try {
+    console.log("🔍 [DEBUG getTeams] Realizando petición GET...");
+    const response = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+    });
+
+    console.log("✅ [DEBUG getTeams] Respuesta recibida:");
+    console.log("   Status:", response.status);
+    console.log("   Data cruda:", response.data);
+    console.log("   Tipo de data:", typeof response.data);
+    console.log("   Es array?:", Array.isArray(response.data));
+
+    if (!response.data) {
+      console.warn("⚠️ [DEBUG getTeams] Respuesta vacía");
+      return [];
+    }
+
+    let backendTeams: BackendTeam[] = [];
+
+    // Manejar diferentes formatos de respuesta
+    if (Array.isArray(response.data)) {
+      backendTeams = response.data;
+      console.log("📊 Datos son array directo, cantidad:", backendTeams.length);
+    } else if (response.data.teams && Array.isArray(response.data.teams)) {
+      backendTeams = response.data.teams;
+      console.log("📊 Datos en propiedad 'teams', cantidad:", backendTeams.length);
+    } else if (typeof response.data === 'object') {
+      // Intentar encontrar cualquier array en el objeto
+      const arrays = Object.values(response.data).filter(val => Array.isArray(val));
+      if (arrays.length > 0) {
+        backendTeams = arrays[0];
+        console.log("📊 Datos encontrados en valores del objeto, cantidad:", backendTeams.length);
+      }
+    }
+
+    if (!Array.isArray(backendTeams)) {
+      console.warn("⚠️ [DEBUG getTeams] Los datos no son un array:", backendTeams);
+      return [];
+    }
+
+    // 🔥 DEBUG CRÍTICO: Mostrar estructura del primer equipo
+    if (backendTeams.length > 0) {
+      console.log("🔥 [DEBUG] Primer equipo CRUDO del backend:", JSON.stringify(backendTeams[0], null, 2));
+      console.log("🔥 [DEBUG] Propiedades del primer equipo:", Object.keys(backendTeams[0]));
+    }
+
+    // 🔥 CORRECCIÓN: Pasar el índice a la función de mapeo
+    const mappedTeams = backendTeams.map((team, index) => mapBackendTeamToFrontend(team, index));
+
+    console.log(`✅ [DEBUG getTeams] ${mappedTeams.length} equipos mapeados exitosamente`);
+
+    // 🔥 DEBUG: Verificar que todos los IDs sean únicos
+    const teamIds = mappedTeams.map(team => team.id);
+    const uniqueTeamIds = new Set(teamIds);
+    if (teamIds.length !== uniqueTeamIds.size) {
+      console.warn("⚠️ [DEBUG getTeams] ADVERTENCIA: Hay IDs de equipo duplicados!");
+    }
+
+    // Verificar IDs únicos de jugadores
+    mappedTeams.forEach((team, teamIndex) => {
+      const playerIds = team.players.map(player => player.id);
+      const uniquePlayerIds = new Set(playerIds);
+      if (playerIds.length !== uniquePlayerIds.size) {
+        console.warn(`⚠️ [DEBUG getTeams] Equipo ${teamIndex} (${team.name}): IDs de jugadores duplicados!`);
+        // 🔥 CORRECCIÓN: Regenerar IDs duplicados
+        team.players.forEach((player, playerIndex) => {
+          if (playerIds.indexOf(player.id!) !== playerIndex) {
+            player.id = `team-${team.id}-player-${playerIndex}-${generateUniqueId()}`;
+          }
+        });
+      }
+    });
+
+    // 🔥 DEBUG: Mostrar cómo quedó el primer equipo mapeado
+    if (mappedTeams.length > 0) {
+      const firstTeam = mappedTeams[0];
+      console.log("🔥 [DEBUG] Primer equipo MAPEADO:", {
+        id: firstTeam.id,
+        name: firstTeam.name,
+        coach: firstTeam.coach,
+        category: firstTeam.category,
+        mainField: firstTeam.mainField,
+        playersCount: firstTeam.players.length,
+        playerIds: firstTeam.players.map(p => p.id).slice(0, 3) // Mostrar primeros 3 IDs
+      });
+    }
+
+    return mappedTeams;
+
+  } catch (error: any) {
+    console.error("❌ [DEBUG getTeams] Error en la petición:");
+    console.error("   Mensaje:", error.message);
+    console.error("   Response status:", error.response?.status);
+    console.error("   Response data:", error.response?.data);
+    console.error("   Response headers:", error.response?.headers);
+    console.error("   Request URL:", error.config?.url);
+    console.error("   Request method:", error.config?.method);
+
+    throw error;
   }
 }
 
-export default new TeamService();
+async function createTeam(idTournament: string, team: NewTeamData): Promise<Team> {
+  console.log("🔍 [DEBUG createTeam] Iniciando creación de equipo");
+  console.log("   idTournament:", idTournament);
+  console.log("   Datos del equipo (frontend):", JSON.stringify(team, null, 2));
+  console.log("   Cantidad de jugadores:", team.players?.length || 0);
+
+  if (!idTournament) {
+    console.error("❌ [DEBUG createTeam] ERROR: idTournament es null/undefined");
+    throw new Error("El idTournament es requerido");
+  }
+
+  const token = getToken();
+  console.log("🔍 [DEBUG createTeam] Token disponible:", token ? "Sí" : "No");
+
+  const url = `${API_URL}/${idTournament}/teams`;
+  console.log("🔍 [DEBUG createTeam] URL completa:", url);
+
+  // Mapear datos del frontend al backend
+  const backendPayload = mapFrontendTeamToBackend(team);
+  console.log("📤 [DEBUG createTeam] Payload para backend:", JSON.stringify(backendPayload, null, 2));
+
+  try {
+    console.log("🔍 [DEBUG createTeam] Realizando petición POST...");
+    const response = await axios.post(url, backendPayload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+    });
+
+    console.log("✅ [DEBUG createTeam] Equipo creado exitosamente:");
+    console.log("   Status:", response.status);
+    console.log("   Data:", response.data);
+
+    // Mapear la respuesta del backend al frontend
+    const createdTeam = mapBackendTeamToFrontend(response.data);
+    console.log("✅ [DEBUG createTeam] Equipo mapeado (frontend):", createdTeam);
+
+    return createdTeam;
+
+  } catch (error: any) {
+    console.error("❌ [DEBUG createTeam] Error en la petición:");
+    console.error("   Mensaje:", error.message);
+    console.error("   Response status:", error.response?.status);
+    console.error("   Response data:", error.response?.data);
+    console.error("   Request data enviada:", error.config?.data);
+
+    // Si hay error de validación del backend
+    if (error.response?.data?.errors) {
+      console.error("   Errores de validación:");
+      error.response.data.errors.forEach((err: any) => {
+        console.error(`     - ${err.field}: ${err.defaultMessage}`);
+      });
+    }
+
+    throw error;
+  }
+}
+
+async function updateTeam(idTournament: string, teamId: string, team: Partial<Team>): Promise<Team> {
+  console.log("🔍 [DEBUG updateTeam] Iniciando actualización");
+  console.log("   idTournament:", idTournament);
+  console.log("   teamId:", teamId);
+  console.log("   Datos a actualizar:", team);
+
+  if (!idTournament || !teamId) {
+    console.error("❌ [DEBUG updateTeam] ERROR: Parámetros requeridos faltantes");
+    throw new Error("idTournament y teamId son requeridos");
+  }
+
+  // Crear un objeto completo para el mapeo
+  const fullTeam: Team = {
+    id: teamId,
+    name: team.name || '',
+    coach: team.coach || '',
+    category: team.category || '',
+    mainField: team.mainField || '',
+    secondaryField: team.secondaryField,
+    players: team.players || []
+  };
+
+  const backendPayload = mapFrontendTeamToBackend(fullTeam);
+
+  const token = getToken();
+  const response = await axios.put(`${API_URL}/${idTournament}/teams/${teamId}`, backendPayload, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  console.log("✅ [DEBUG updateTeam] Equipo actualizado:", response.data);
+  return mapBackendTeamToFrontend(response.data);
+}
+
+async function deleteTeam(idTournament: string, teamId: string): Promise<void> {
+  console.log("🔍 [DEBUG deleteTeam] Iniciando eliminación");
+  console.log("   idTournament:", idTournament);
+  console.log("   teamId:", teamId);
+
+  if (!idTournament || !teamId) {
+    console.error("❌ [DEBUG deleteTeam] ERROR: Parámetros requeridos faltantes");
+    throw new Error("idTournament y teamId son requeridos");
+  }
+
+  const token = getToken();
+  await axios.delete(`${API_URL}/${idTournament}/teams/${teamId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  console.log("✅ [DEBUG deleteTeam] Equipo eliminado exitosamente");
+}
+
+// Función de debugging para verificar conexión
+export async function testConnection(): Promise<boolean> {
+  console.log("🔍 [DEBUG testConnection] Probando conexión con backend...");
+
+  try {
+    const token = getToken();
+    const response = await axios.get(API_URL, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 5000
+    });
+
+    console.log("✅ [DEBUG testConnection] Conexión exitosa");
+    console.log("   Status:", response.status);
+    console.log("   Backend disponible");
+
+    return true;
+  } catch (error: any) {
+    console.error("❌ [DEBUG testConnection] Error de conexión:");
+    console.error("   Mensaje:", error.message);
+    console.error("   Código:", error.code);
+    console.error("   URL:", API_URL);
+
+    if (error.response) {
+      console.error("   Response status:", error.response.status);
+    } else if (error.request) {
+      console.error("   No se recibió respuesta del servidor");
+    }
+
+    return false;
+  }
+}
+
+// 🔥 FUNCIÓN NUEVA: Para generar IDs únicos en el componente
+export function generatePlayerId(): string {
+  return generateUniqueId('player-');
+}
+
+export default {
+  getTeams,
+  createTeam,
+  updateTeam,
+  deleteTeam,
+  testConnection,
+  generatePlayerId,
+};

@@ -30,8 +30,8 @@ import {
 } from 'lucide-react';
 import { CalendarioService, Match, CreateMatchPayload, Tournament as ApiTournament, Referee as ApiReferee, Team } from '@/services/calendarService';
 import { useToast } from '@/hooks/use-toast';
-// ✅ AGREGAR ESTA IMPORTACIÓN
 import teamService from '@/services/teamManagementService';
+import { jwtDecode } from 'jwt-decode';
 
 interface CalendarMatch {
   id: string;
@@ -60,7 +60,7 @@ interface LocalReferee {
   name: string;
 }
 
-// ✅ INTERFAZ PARA EQUIPOS SIMPLIFICADOS (AGREGADA)
+// ✅ INTERFAZ PARA EQUIPOS SIMPLIFICADOS
 interface SimplifiedTeam {
   teamId: number;
   name: string;
@@ -69,6 +69,16 @@ interface SimplifiedTeam {
   mainStadium?: string;
   secondaryStadium?: string;
   dateCreated?: string;
+}
+
+// 🔹 INTERFAZ PARA TOKEN DECODIFICADO
+interface DecodedToken {
+  sub: string;
+  roles?: string[];
+  authorities?: string[];
+  exp: number;
+  iat?: number;
+  iss?: string;
 }
 
 const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -83,7 +93,7 @@ export default function Calendar() {
 
   useEffect(() => {
     document.title = `Calendario de Partidos`;
-  }, []); // ✅ CORREGIDO: Array de dependencias
+  }, );
 
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -100,7 +110,6 @@ export default function Calendar() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Nuevos estados para manejar equipos y estadios
-  // ✅ CAMBIAR A SimplifiedTeam
   const [selectedTournamentTeams, setSelectedTournamentTeams] = useState<SimplifiedTeam[]>([]);
   const [localTeamStadiums, setLocalTeamStadiums] = useState<{main: string; secondary: string}>({main: '', secondary: ''});
   const [stadiumOptions, setStadiumOptions] = useState<string[]>([]);
@@ -119,6 +128,116 @@ export default function Calendar() {
     stadium: '',
     referee: ''
   });
+
+  // 🔹 FUNCIÓN PARA VERIFICAR ROL DEL USUARIO
+  const checkUserRole = (): DecodedToken | null => {
+    try {
+      const token = localStorage.getItem("token") || '';
+      if (!token) {
+        console.log('❌ No hay token en localStorage');
+        return null;
+      }
+      
+      const cleanToken = token.replace(/^"(.*)"$/, '$1');
+      console.log('🔐 Token limpio (primeros 50 chars):', cleanToken.substring(0, 50) + '...');
+      
+      const decoded = jwtDecode<DecodedToken>(cleanToken);
+      
+      console.log('👤 Usuario autenticado:', {
+        username: decoded.sub,
+        roles: decoded.roles || decoded.authorities,
+        tokenExp: new Date(decoded.exp * 1000).toLocaleString(),
+        issuedAt: decoded.iat ? new Date(decoded.iat * 1000).toLocaleString() : 'N/A'
+      });
+      
+      return decoded;
+    } catch (error) {
+      console.error('❌ Error decodificando token:', error);
+      return null;
+    }
+  };
+
+  // 🔹 FUNCIÓN PARA PROBAR EL ENDPOINT DIRECTAMENTE
+  const testCreateMatchDirectly = async (payload: any): Promise<any> => {
+    try {
+      console.group('🧪 TEST CREATE MATCH DIRECTLY');
+      
+      // Obtener token
+      const token = localStorage.getItem("token") || '';
+      const cleanToken = token.replace(/^"(.*)"$/, '$1').replace('Bearer ', '');
+      
+      console.log('🔐 Token para test:', cleanToken.substring(0, 30) + '...');
+      console.log('📤 Payload:', payload);
+      
+      const response = await fetch('http://localhost:8085/api/tournaments/matches/calendar', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${cleanToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      console.log('📊 Response status:', response.status);
+      console.log('📋 Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      const text = await response.text();
+      console.log('📄 Response body:', text);
+      
+      if (!response.ok) {
+        // Intentar parsear como JSON si hay error
+        try {
+          const errorData = JSON.parse(text);
+          console.log('🔍 Error details:', errorData);
+          
+          if (errorData.message?.toLowerCase().includes('role') || 
+              errorData.message?.toLowerCase().includes('permission') ||
+              errorData.message?.toLowerCase().includes('authoriz')) {
+            console.error('⚠️ ERROR DE PERMISOS DETECTADO:', errorData.message);
+            
+            // Mostrar roles del usuario
+            const userInfo = checkUserRole();
+            if (userInfo) {
+              console.error('👤 Roles del usuario actual:', userInfo.roles || userInfo.authorities);
+            }
+          }
+        } catch {
+          console.log('Error no es JSON:', text);
+        }
+        
+        throw new Error(`HTTP ${response.status}: ${text}`);
+      }
+      
+      const data = JSON.parse(text);
+      console.log('✅ Test exitoso:', data);
+      console.groupEnd();
+      return data;
+    } catch (error) {
+      console.error('❌ Test fallido:', error);
+      console.groupEnd();
+      throw error;
+    }
+  };
+
+  // 🔹 VERIFICAR ROL AL INICIAR EL COMPONENTE
+  useEffect(() => {
+    const userInfo = checkUserRole();
+    if (userInfo) {
+      console.log('🔐 Rol del usuario actual:', userInfo.roles || userInfo.authorities);
+      
+      // Verificar si tiene permisos
+      const roles = userInfo.roles || userInfo.authorities || [];
+      const hasPermission = roles.some(role => 
+        role.includes('USER') || 
+        role.includes('ADMIN') ||
+        role.includes('ROLE_USER') ||
+        role.includes('ROLE_ADMIN')
+      );
+      
+      console.log('🔐 Usuario tiene permisos para crear partidos?', hasPermission);
+    }
+  }, []);
 
   // Fetch initial data including tournaments and referees - MEJORADO
   useEffect(() => {
@@ -149,7 +268,7 @@ export default function Calendar() {
 
         // Convert API matches to CalendarMatch format
         const convertedMatches: CalendarMatch[] = fetchedMatches.map(match => {
-          const dateTime = new Date(match.matchDateTIme);
+          const dateTime = new Date(match.matchDateTime);
           const date = dateTime.toISOString().split('T')[0];
           const time = dateTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
@@ -187,20 +306,20 @@ export default function Calendar() {
     fetchInitialData();
   }, [currentDate, toast]);
 
-  // Función para debuggear estructura de equipos
+  // Función para debuggear estructura de equipos - ACTUALIZADA
   const debugTeamStructure = (teams: any[]) => {
     if (teams.length === 0) {
       console.log('❌ No teams found');
       return;
     }
     
-    console.log('🔍 Team structure analysis (from teamService):'); // ✅ CORREGIDO
+    console.log('🔍 Team structure analysis (from teamService):');
     console.log('Number of teams:', teams.length);
     console.log('First team:', teams[0]);
     console.log('Team keys:', Object.keys(teams[0]));
-    console.log('Has id?:', 'id' in teams[0]); // ✅ CORREGIDO
-    console.log('Has name?:', 'name' in teams[0]); // ✅ CORREGIDO
-    console.log('Team structure type:', Array.isArray(teams) ? 'Array' : typeof teams); // ✅ AGREGADO
+    console.log('Has id?:', 'id' in teams[0]);
+    console.log('Has name?:', 'name' in teams[0]);
+    console.log('Team structure type:', Array.isArray(teams) ? 'Array' : typeof teams);
   };
 
   // Función para cargar equipos cuando se selecciona un torneo - MEJORADA
@@ -219,25 +338,26 @@ export default function Calendar() {
     if (tournamentId !== 'all') {
       try {
         console.log(`🔄 handleTournamentChange called with:`, tournamentId);
-        console.log(`📞 Using teamService.getTeams()`); // ✅ AGREGADO
+        console.log(`📞 Using teamService.getTeams()`);
         
-        // ✅ USA teamService EN LUGAR DE CalendarioService
         const teams = await teamService.getTeams(parseInt(tournamentId));
         
-        console.log('📦 Equipos obtenidos con teamService:', teams); // ✅ MEJORADO
+        console.log('📦 Equipos obtenidos con teamService:', teams);
         
-        // DEBUG: Verificar estructura de equipos
         debugTeamStructure(teams);
         
-        // ✅ CORREGIDO: Crear array de SimplifiedTeam
         const convertedTeams: SimplifiedTeam[] = teams.map(team => ({
-          teamId: team.id, // teamService usa 'id', lo convertimos a 'teamId'
-          name: team.name
+          teamId: team.id,
+          name: team.name,
+          coach: team.coach || '',
+          category: team.category || '',
+          mainStadium: team.mainField || '',
+          secondaryStadium: team.secondaryField || '',
+          dateCreated: new Date().toISOString()
         }));
         
         setSelectedTournamentTeams(convertedTeams);
         
-        // Actualizar el estado de tournaments con los equipos simplificados
         setTournaments(prev => prev.map(t => 
           t.id === parseInt(tournamentId) 
             ? { 
@@ -260,7 +380,7 @@ export default function Calendar() {
     }
   };
 
-  // Handler para cuando seleccionan equipo local - MEJORADO
+  // Handler para cuando seleccionan equipo local
   const handleHomeTeamChange = async (teamName: string) => {
     setNewMatch({ ...newMatch, homeTeam: teamName, awayTeam: '', stadium: '' });
     setLocalTeamStadiums({ main: '', secondary: '' });
@@ -271,28 +391,20 @@ export default function Calendar() {
     if (selectedTeam && newMatch.tournament) {
       setIsLoadingStadiums(true);
       try {
-        console.log('Loading team details for:', {
-          tournamentId: newMatch.tournament,
-          teamId: selectedTeam.teamId, // ✅ USAR SOLO teamId
-          teamName: selectedTeam.name
+        console.log('Using already available team data for stadiums:', {
+          teamId: selectedTeam.teamId,
+          teamName: selectedTeam.name,
+          mainStadium: selectedTeam.mainStadium,
+          secondaryStadium: selectedTeam.secondaryStadium
         });
 
-        // Obtener detalles completos del equipo con el endpoint específico
-        const teamDetails = await CalendarioService.getTeamDetails(
-          parseInt(newMatch.tournament),
-          selectedTeam.teamId // ✅ USAR SOLO teamId
-        );
-        
-        console.log('Team details loaded:', teamDetails);
-        
         const stadiums = {
-          main: teamDetails.mainStadium || '',
-          secondary: teamDetails.secondaryStadium || ''
+          main: selectedTeam.mainStadium || '',
+          secondary: selectedTeam.secondaryStadium || ''
         };
         
         setLocalTeamStadiums(stadiums);
         
-        // Crear opciones de estadio (solo incluir estadios que tengan valor)
         const options: string[] = [];
         
         if (stadiums.main) {
@@ -302,16 +414,13 @@ export default function Calendar() {
           options.push(stadiums.secondary);
         }
         
-        // Siempre agregar la opción de ingresar otro estadio
         options.push('Ingresar otro estadio...');
         
         setStadiumOptions(options);
         
-        // Seleccionar estadio principal por defecto si existe
         if (stadiums.main) {
           setNewMatch(prev => ({ ...prev, stadium: stadiums.main }));
         } else if (stadiums.secondary) {
-          // Si no hay principal, usar el secundario
           setNewMatch(prev => ({ ...prev, stadium: stadiums.secondary }));
         }
         
@@ -323,7 +432,6 @@ export default function Calendar() {
           variant: 'destructive',
         });
         
-        // En caso de error, permitir ingreso manual
         setStadiumOptions(['Ingresar otro estadio...']);
       } finally {
         setIsLoadingStadiums(false);
@@ -341,14 +449,13 @@ export default function Calendar() {
     setNewMatch({ ...newMatch, stadium: value });
   };
 
-  // Handler para hover sobre partidos - MEJORADO
+  // Handler para hover sobre partidos
   const handleMatchHover = (match: CalendarMatch, e: React.MouseEvent) => {
     e.stopPropagation();
     
-    // Calcular posición centrada relativa al elemento
     const rect = e.currentTarget.getBoundingClientRect();
     const x = rect.left + rect.width / 2;
-    const y = rect.top - 10; // Un poco arriba del elemento
+    const y = rect.top - 10;
     
     setHoveredMatch(match);
     setTooltipPosition({ 
@@ -467,6 +574,38 @@ export default function Calendar() {
   };
 
   const handleScheduleMatch = async () => {
+    // 🔹 VERIFICAR PERMISOS PRIMERO
+    const userInfo = checkUserRole();
+    if (userInfo) {
+      const roles = userInfo.roles || userInfo.authorities || [];
+      console.log('🔐 Roles del usuario que intenta crear partido:', roles);
+      
+      const hasPermission = roles.some(role => 
+        role.includes('ORGANIZADOR') || 
+        role.includes('ADMIN') ||
+        role.includes('ROLE_ORGANIZADOR') ||
+        role.includes('ROLE_ADMIN') ||
+        role.includes('MANAGER')
+      );
+      
+      if (!hasPermission) {
+        toast({
+          title: 'Permisos insuficientes',
+          description: `Necesitas ser organizador o administrador para crear partidos. Tu rol actual: ${roles.join(', ')}`,
+          variant: 'destructive',
+          duration: 10000,
+        });
+        return;
+      }
+    } else {
+      toast({
+        title: 'Error de autenticación',
+        description: 'No se pudo verificar tu sesión. Por favor, inicia sesión nuevamente.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (
       newMatch.tournament &&
       newMatch.homeTeam &&
@@ -474,11 +613,13 @@ export default function Calendar() {
       newMatch.date &&
       newMatch.time &&
       newMatch.stadium &&
-      newMatch.stadium !== 'Ingresar otro estadio...' && // Validar que no sea la opción placeholder
+      newMatch.stadium !== 'Ingresar otro estadio...' &&
       newMatch.referee
     ) {
       setIsSaving(true);
       try {
+        console.group('🚀 Intentando crear partido');
+        
         // Encontrar los IDs de los equipos por sus nombres
         const homeTeam = selectedTournamentTeams.find(team => team.name === newMatch.homeTeam);
         const awayTeam = selectedTournamentTeams.find(team => team.name === newMatch.awayTeam);
@@ -488,16 +629,18 @@ export default function Calendar() {
         }
 
         const selectedTournamentId = parseInt(newMatch.tournament);
-        // ✅ USAR SOLO teamId
         const homeTeamId = homeTeam.teamId;
         const awayTeamId = awayTeam.teamId;
         const refereeId = parseInt(newMatch.referee);
 
-        // Combine date and time into ISO format
+        // Formatear fecha
         const [hours, minutes] = newMatch.time.split(':');
         const matchDateTime = new Date(newMatch.date);
         matchDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        
         const matchDateStr = matchDateTime.toISOString();
+        
+        console.log('📅 Fecha formateada para enviar:', matchDateStr);
 
         const payload: CreateMatchPayload = {
           homeTeamId,
@@ -508,8 +651,47 @@ export default function Calendar() {
           matchDate: matchDateStr,
         };
 
-        const response = await CalendarioService.createMatch(payload);
+        console.log('📤 Payload completo:', payload);
 
+        // 🔹 PRIMERO PROBAR CON FETCH DIRECTAMENTE
+        console.log('🧪 Probando con fetch directamente...');
+        try {
+          const directResult = await testCreateMatchDirectly(payload);
+          console.log('✅ Éxito con fetch directo:', directResult);
+          
+          toast({
+            title: 'Éxito',
+            description: 'El partido ha sido programado correctamente.',
+          });
+
+          // Reset form and close dialog
+          setIsScheduleDialogOpen(false);
+          setNewMatch({
+            tournament: '',
+            homeTeam: '',
+            awayTeam: '',
+            date: '',
+            time: '',
+            stadium: '',
+            referee: ''
+          });
+          setLocalTeamStadiums({ main: '', secondary: '' });
+          setStadiumOptions([]);
+          setSelectedTournamentTeams([]);
+
+          // Refresh matches
+          await refreshMatches();
+          
+          console.groupEnd();
+          return;
+        } catch (directError) {
+          console.log('❌ Fetch directo falló, intentando con CalendarioService...');
+        }
+
+        // 🔹 SI FALLA, INTENTAR CON CalendarioService
+        const response = await CalendarioService.createMatch(payload);
+        console.log('✅ Éxito con CalendarioService:', response);
+        
         toast({
           title: 'Éxito',
           description: 'El partido ha sido programado correctamente.',
@@ -531,51 +713,97 @@ export default function Calendar() {
         setSelectedTournamentTeams([]);
 
         // Refresh matches
-        const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-        const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-        const startDate = new Date(firstDay);
-        startDate.setMonth(startDate.getMonth() - 1);
-        const endDate = new Date(lastDay);
-        endDate.setMonth(endDate.getMonth() + 1);
-
-        const initialDateStr = startDate.toISOString().split('T')[0];
-        const finishDateStr = endDate.toISOString().split('T')[0];
-
-        const fetchedMatches = await CalendarioService.getMatches(initialDateStr, finishDateStr);
-
-        const convertedMatches: CalendarMatch[] = fetchedMatches.map(match => {
-          const dateTime = new Date(match.matchDateTIme);
-          const date = dateTime.toISOString().split('T')[0];
-          const time = dateTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-
-          return {
-            id: String(match.matchId),
-            tournament: match.tournamentName,
-            homeTeam: match.homeTeam,
-            homeTeamId: match.homeTeamId,
-            awayTeam: match.awayTeam,
-            awayTeamId: match.awayTeamId,
-            date,
-            time,
-            stadium: match.stadium,
-            referee: match.refereeName,
-            refereeId: match.refereeId,
-            goalsHomeTeam: match.goalsHomeTeam,
-            goalsAwayTeam: match.goalsAwayTeam,
-          };
-        });
-
-        setMatches(convertedMatches);
+        await refreshMatches();
+        
+        console.groupEnd();
       } catch (error: any) {
-        console.error('Error creating match:', error);
-        toast({
-          title: 'Error',
-          description: error.message || 'No se pudo crear el partido. Intenta nuevamente.',
-          variant: 'destructive',
-        });
+        console.error('❌ Error creando partido:', error);
+        console.groupEnd();
+        
+        if (error.response) {
+          console.error('🔍 Error response details:', {
+            status: error.response.status,
+            data: error.response.data,
+            headers: error.response.headers
+          });
+          
+          let errorMessage = error.message || 'No se pudo crear el partido. Intenta nuevamente.';
+          
+          if (error.response.status === 401) {
+            errorMessage = 'Tu sesión ha expirado o no tienes permisos para crear partidos. Por favor, inicia sesión nuevamente con una cuenta de organizador.';
+            
+            // Mostrar roles del usuario
+            const userInfo = checkUserRole();
+            if (userInfo) {
+              const roles = userInfo.roles || userInfo.authorities || [];
+              console.error('👤 Roles del usuario:', roles);
+              errorMessage += `\n\nTu rol actual: ${roles.join(', ')}`;
+            }
+          } else if (error.response.status === 400) {
+            errorMessage = error.response.data?.message || 'Verifica los datos del partido.';
+          } else if (error.response.status === 403) {
+            errorMessage = 'No tienes permisos para realizar esta acción. Necesitas ser organizador o administrador.';
+          }
+          
+          toast({
+            title: 'Error',
+            description: errorMessage,
+            variant: 'destructive',
+            duration: 10000,
+          });
+        } else {
+          toast({
+            title: 'Error',
+            description: error.message || 'No se pudo crear el partido. Intenta nuevamente.',
+            variant: 'destructive',
+          });
+        }
       } finally {
         setIsSaving(false);
       }
+    }
+  };
+
+  // 🔹 FUNCIÓN PARA ACTUALIZAR PARTIDOS
+  const refreshMatches = async () => {
+    try {
+      const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      const startDate = new Date(firstDay);
+      startDate.setMonth(startDate.getMonth() - 1);
+      const endDate = new Date(lastDay);
+      endDate.setMonth(endDate.getMonth() + 1);
+
+      const initialDateStr = startDate.toISOString().split('T')[0];
+      const finishDateStr = endDate.toISOString().split('T')[0];
+
+      const fetchedMatches = await CalendarioService.getMatches(initialDateStr, finishDateStr);
+
+      const convertedMatches: CalendarMatch[] = fetchedMatches.map(match => {
+        const dateTime = new Date(match.matchDateTime);
+        const date = dateTime.toISOString().split('T')[0];
+        const time = dateTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+
+        return {
+          id: String(match.matchId),
+          tournament: match.tournamentName,
+          homeTeam: match.homeTeam,
+          homeTeamId: match.homeTeamId,
+          awayTeam: match.awayTeam,
+          awayTeamId: match.awayTeamId,
+          date,
+          time,
+          stadium: match.stadium,
+          referee: match.refereeName,
+          refereeId: match.refereeId,
+          goalsHomeTeam: match.goalsHomeTeam,
+          goalsAwayTeam: match.goalsAwayTeam,
+        };
+      });
+
+      setMatches(convertedMatches);
+    } catch (error) {
+      console.error('Error refreshing matches:', error);
     }
   };
 
@@ -602,8 +830,42 @@ export default function Calendar() {
     );
   }
 
+  // 🔹 COMPONENTE TEMPORAL PARA DEBUG
+  const DebugPanel = () => {
+    if (!isScheduleDialogOpen) return null;
+    
+    return (
+      <div className="fixed bottom-4 right-4 z-50 bg-yellow-50 border border-yellow-200 rounded-lg p-4 shadow-lg max-w-md">
+        <h3 className="font-bold text-yellow-800 mb-2">🔍 Panel de Debug</h3>
+        <div className="text-sm text-yellow-700 space-y-1">
+          <div>Token presente: {localStorage.getItem("token") ? '✅' : '❌'}</div>
+          <div>Equipos cargados: {selectedTournamentTeams.length}</div>
+          <div>Usuario: {checkUserRole()?.sub || 'No autenticado'}</div>
+          <div>Roles: {(checkUserRole()?.roles || checkUserRole()?.authorities || []).join(', ') || 'Sin roles'}</div>
+          <button 
+            onClick={() => {
+              const token = localStorage.getItem("token");
+              if (token) {
+                const cleanToken = token.replace(/^"(.*)"$/, '$1');
+                console.log('Token completo:', cleanToken);
+                navigator.clipboard.writeText(cleanToken.substring(0, 100));
+                alert('Token copiado (primeros 100 caracteres)');
+              }
+            }}
+            className="text-xs bg-yellow-100 hover:bg-yellow-200 px-2 py-1 rounded mt-2"
+          >
+            Copiar token (primeros 100 chars)
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Debug Panel */}
+      <DebugPanel />
+      
       {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
@@ -1030,7 +1292,6 @@ export default function Calendar() {
                 </div>
               ) : newMatch.homeTeam && stadiumOptions.length > 0 ? (
                 <div className="space-y-3">
-                  {/* Select para estadios del equipo local */}
                   <Select value={newMatch.stadium} onValueChange={handleStadiumChange}>
                     <SelectTrigger className="rounded-lg border-gray-300 focus:border-blue-600 focus:ring-blue-600">
                       <SelectValue placeholder="Seleccionar estadio" />
@@ -1046,7 +1307,6 @@ export default function Calendar() {
                     </SelectContent>
                   </Select>
 
-                  {/* Input para estadio personalizado cuando selecciona "Ingresar otro estadio..." */}
                   {newMatch.stadium === 'Ingresar otro estadio...' && (
                     <div className="space-y-2">
                       <Label className="text-xs text-gray-600">Nombre del estadio personalizado</Label>
@@ -1060,7 +1320,6 @@ export default function Calendar() {
                     </div>
                   )}
 
-                  {/* Información de estadios disponibles del equipo */}
                   {(localTeamStadiums.main || localTeamStadiums.secondary) && (
                     <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                       <h4 className="text-xs font-semibold text-blue-900 mb-1">
@@ -1084,7 +1343,6 @@ export default function Calendar() {
                   )}
                 </div>
               ) : newMatch.homeTeam ? (
-                /* Si hay equipo pero no se pudieron cargar opciones de estadio */
                 <div className="space-y-2">
                   <Input
                     type="text"
@@ -1098,7 +1356,6 @@ export default function Calendar() {
                   </p>
                 </div>
               ) : (
-                /* Si no hay equipo local seleccionado */
                 <div className="space-y-2">
                   <Input
                     type="text"
@@ -1167,7 +1424,7 @@ export default function Calendar() {
                 !newMatch.date ||
                 !newMatch.time ||
                 !newMatch.stadium ||
-                newMatch.stadium === 'Ingresar otro estadio...' || // No permitir el placeholder
+                newMatch.stadium === 'Ingresar otro estadio...' ||
                 !newMatch.referee ||
                 isSaving ||
                 isLoadingStadiums
@@ -1211,17 +1468,16 @@ export default function Calendar() {
         </DialogContent>
       </Dialog>
 
-      {/* Tooltip para información del partido - MEJORADO */}
+      {/* Tooltip para información del partido */}
       {hoveredMatch && tooltipPosition.visible && (
         <div 
           className="fixed z-50 bg-gray-900 text-white p-3 rounded-lg shadow-lg max-w-xs border border-gray-700 pointer-events-none transition-opacity duration-200"
           style={{
             left: `${tooltipPosition.x}px`,
             top: `${tooltipPosition.y}px`,
-            transform: 'translate(-50%, -100%)', // Centrar horizontalmente y posicionar arriba
+            transform: 'translate(-50%, -100%)',
           }}
         >
-          {/* Flecha del tooltip */}
           <div 
             className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full border-8 border-transparent border-t-gray-900"
           />
