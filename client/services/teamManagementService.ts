@@ -232,32 +232,42 @@ class TeamService {
       const uniqueTeamsMap = new Map();
       
       teamsData.forEach((backendTeam: any, index: number) => {
-        const teamId = backendTeam.teamId || backendTeam.id || index + 1;
-        
-        // Si ya existe un equipo con este ID, no lo agregamos
-        if (!uniqueTeamsMap.has(teamId)) {
-          const backendCategory = backendTeam.teamCategory || backendTeam.category;
-          const frontendCategory = reverseCategoryMapping[backendCategory] || 'libre';
 
-          const mappedTeam = {
-            id: teamId,
-            name: backendTeam.teamName || backendTeam.name || `Equipo ${teamId}`,
-            coach: backendTeam.coachName || backendTeam.coach || 'Sin DT asignado',
-            category: frontendCategory,
-            mainField: backendTeam.mainStadium || backendTeam.mainField || 'Cancha principal',
-            secondaryField: backendTeam.secondaryStadium || backendTeam.secondaryField || '',
-            players: Array.isArray(backendTeam.teamPlayers) ? backendTeam.teamPlayers.map((p: any) => ({
-              id: p.id || Date.now() + Math.random(),
-              name: p.name || 'Jugador sin nombre',
-              position: p.playerPosition || p.position || 'DF',
-              dorsalNumber: p.shirtNumber || p.dorsalNumber || 0,
-              age: p.age || 18
-            })) : []
-          };
+        // 🔥 OBLIGAR a que el backend traiga un ID real
+const teamId = backendTeam.idTeam 
+            || backendTeam.teamId 
+            || backendTeam.id;
 
-          uniqueTeamsMap.set(teamId, mappedTeam);
-          console.log(`🔍 Equipo mapeado [${index}]:`, mappedTeam.name, '- ID:', mappedTeam.id);
-        } else {
+if (!teamId) {
+  console.error("❌ ERROR: El backend devolvió un equipo SIN ID REAL:", backendTeam);
+  return; // ⬅️ Lo descartamos. No generamos IDs falsos.
+}
+
+if (!uniqueTeamsMap.has(teamId)) {
+  const backendCategory = backendTeam.teamCategory || backendTeam.category;
+  const frontendCategory = reverseCategoryMapping[backendCategory] || 'libre';
+
+  const mappedTeam = {
+    id: teamId,
+    name: backendTeam.teamName || backendTeam.name || `Equipo ${teamId}`,
+    coach: backendTeam.coachName || backendTeam.coach || 'Sin DT asignado',
+    category: frontendCategory,
+    mainField: backendTeam.mainStadium || backendTeam.mainField || 'Cancha principal',
+    secondaryField: backendTeam.secondaryStadium || backendTeam.secondaryField || '',
+    players: Array.isArray(backendTeam.teamPlayers) ? backendTeam.teamPlayers.map((p: any) => ({
+      id: p.id, // NO inventar ids
+      name: p.name,
+      position: p.playerPosition || p.position,
+      dorsalNumber: p.shirtNumber || p.dorsalNumber,
+      age: p.age
+    })) : []
+  };
+
+  uniqueTeamsMap.set(teamId, mappedTeam);
+  console.log(`🔍 Equipo mapeado correctamente:`, mappedTeam.name, 'ID:', mappedTeam.id);
+}
+
+ else {
           console.warn(`⚠️ Equipo duplicado con ID ${teamId} filtrado`);
         }
       });

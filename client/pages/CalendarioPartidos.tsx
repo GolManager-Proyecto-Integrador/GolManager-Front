@@ -830,42 +830,10 @@ export default function Calendar() {
     );
   }
 
-  // 🔹 COMPONENTE TEMPORAL PARA DEBUG
-  const DebugPanel = () => {
-    if (!isScheduleDialogOpen) return null;
-    
-    return (
-      <div className="fixed bottom-4 right-4 z-50 bg-yellow-50 border border-yellow-200 rounded-lg p-4 shadow-lg max-w-md">
-        <h3 className="font-bold text-yellow-800 mb-2">🔍 Panel de Debug</h3>
-        <div className="text-sm text-yellow-700 space-y-1">
-          <div>Token presente: {localStorage.getItem("token") ? '✅' : '❌'}</div>
-          <div>Equipos cargados: {selectedTournamentTeams.length}</div>
-          <div>Usuario: {checkUserRole()?.sub || 'No autenticado'}</div>
-          <div>Roles: {(checkUserRole()?.roles || checkUserRole()?.authorities || []).join(', ') || 'Sin roles'}</div>
-          <button 
-            onClick={() => {
-              const token = localStorage.getItem("token");
-              if (token) {
-                const cleanToken = token.replace(/^"(.*)"$/, '$1');
-                console.log('Token completo:', cleanToken);
-                navigator.clipboard.writeText(cleanToken.substring(0, 100));
-                alert('Token copiado (primeros 100 caracteres)');
-              }
-            }}
-            className="text-xs bg-yellow-100 hover:bg-yellow-200 px-2 py-1 rounded mt-2"
-          >
-            Copiar token (primeros 100 chars)
-          </button>
-        </div>
-      </div>
-    );
-  };
+
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Debug Panel */}
-      <DebugPanel />
-      
       {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
