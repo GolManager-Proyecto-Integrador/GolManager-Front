@@ -103,6 +103,7 @@ export interface CreatedMatchResponse {
   awayTeam: string;
   stadiumName: string;
   matchDate: string;
+  tournamentId: number;
 }
 
 export interface Tournament {
@@ -199,22 +200,85 @@ export const CalendarioService = {
     }
   },
 
-  // Crear un nuevo partido - USANDO apiClient
+  // ========================
+  // 🔥 NUEVO MÉTODO AGREGADO
+  // ========================
+  
+  // Crear un nuevo partido usando el endpoint específico por torneo
+  createMatchByTournament: async (
+    tournamentId: number,
+    payload: CreateMatchPayload
+  ): Promise<CreatedMatchResponse> => {
+    try {
+      console.group(`🚀 CalendarService - Creating match for tournament ${tournamentId}`);
+      console.log('🎯 Endpoint:', `/tournaments/${tournamentId}/matches`);
+      console.log('📤 Payload original:', payload);
+      
+      // IMPORTANTE: Crear una copia del payload para no modificar el original
+      const cleanPayload = { ...payload };
+      
+      // Opcional: Remover tournamentId del payload si ya está en la URL
+      // Algunos backends pueden dar error por duplicación
+      // Comentado por ahora, probar primero con el payload completo
+      /*
+      if (cleanPayload.tournamentId === tournamentId) {
+        console.log('ℹ️ tournamentId removido del payload (ya está en URL)');
+        delete cleanPayload.tournamentId;
+      }
+      */
+      
+      console.log('📤 Payload final:', cleanPayload);
+      
+      const response = await apiClient.post<CreatedMatchResponse>(
+        `/tournaments/${tournamentId}/matches`, 
+        cleanPayload
+      );
+      
+      console.log('✅ CalendarService - Match created successfully via tournament endpoint:', response.data);
+      console.groupEnd();
+      return response.data;
+    } catch (error) {
+      console.error('❌ CalendarService - Error creating match via tournament endpoint:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('🔍 CalendarService - Tournament endpoint error details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: error.config?.url,
+          requestPayload: error.config?.data
+        });
+        
+        // Detectar específicamente si el error es por duplicación de tournamentId
+        if (error.response?.status === 400) {
+          const errorData = error.response.data;
+          if (typeof errorData === 'string' && errorData.includes('tournamentId') && errorData.includes('duplicate')) {
+            console.log('🔄 Intentando sin tournamentId en el payload...');
+            // Podríamos intentar de nuevo sin el tournamentId en el payload
+          }
+        }
+      }
+      throw error;
+    }
+  },
+
+  // Método original para compatibilidad
   createMatch: async (payload: CreateMatchPayload): Promise<CreatedMatchResponse> => {
     try {
-      console.log('🚀 CalendarService - Creating match with payload:', payload);
+      console.log('🚀 CalendarService - Creating match with original endpoint');
+      console.log('🎯 Endpoint:', '/tournaments/matches/calendar');
+      console.log('📤 Payload:', payload);
       
       const response = await apiClient.post<CreatedMatchResponse>(
         '/tournaments/matches/calendar', 
         payload
       );
       
-      console.log('✅ CalendarService - Match created successfully:', response.data);
+      console.log('✅ CalendarService - Match created successfully with original endpoint:', response.data);
       return response.data;
     } catch (error) {
-      console.error('❌ CalendarService - Error creating match:', error);
+      console.error('❌ CalendarService - Error creating match with original endpoint:', error);
       if (axios.isAxiosError(error)) {
-        console.error('🔍 CalendarService - Create match error details:', {
+        console.error('🔍 CalendarService - Original endpoint error details:', {
           status: error.response?.status,
           statusText: error.response?.statusText,
           data: error.response?.data,
@@ -222,6 +286,80 @@ export const CalendarioService = {
         });
       }
       throw error;
+    }
+  },
+
+  // ========================
+  // MÉTODOS AUXILIARES PARA PRUEBAS
+  // ========================
+  
+  // Probar ambos endpoints y ver cuál funciona
+  testCreateMatchEndpoints: async (
+    tournamentId: number,
+    payload: CreateMatchPayload
+  ): Promise<{ endpoint: string; data: CreatedMatchResponse }> => {
+    console.group('🧪 CalendarService - Testing both endpoints');
+    
+    const endpoints = [
+      {
+        name: 'tournament-specific',
+        method: () => CalendarioService.createMatchByTournament(tournamentId, payload)
+      },
+      {
+        name: 'original-calendar',
+        method: () => CalendarioService.createMatch(payload)
+      }
+    ];
+    
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`🔄 Probando endpoint: ${endpoint.name}`);
+        const result = await endpoint.method();
+        console.log(`✅ ${endpoint.name} funcionó!`);
+        console.groupEnd();
+        return { endpoint: endpoint.name, data: result };
+      } catch (error: any) {
+        console.log(`❌ ${endpoint.name} falló: ${error.message}`);
+        // Continuar con el siguiente endpoint
+      }
+    }
+    
+    console.groupEnd();
+    throw new Error('Ambos endpoints fallaron');
+  },
+
+  // Verificar permisos del usuario para un torneo específico
+  verifyTournamentAccess: async (tournamentId: number): Promise<boolean> => {
+    try {
+      console.log(`🔍 CalendarService - Verifying access to tournament ${tournamentId}`);
+      
+      // Intentar obtener detalles del torneo
+      const response = await apiClient.get(`/tournaments/${tournamentId}`);
+      
+      if (response.status === 200) {
+        console.log('✅ CalendarService - User has access to tournament');
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('❌ CalendarService - Error verifying tournament access:', error);
+      if (axios.isAxiosError(error)) {
+        console.log(`🔍 CalendarService - Access verification error: ${error.response?.status}`);
+        
+        // Si es 403, el usuario no tiene permisos
+        if (error.response?.status === 403) {
+          console.log('❌ CalendarService - User is NOT organizer of this tournament');
+          return false;
+        }
+        
+        // Si es 404, el torneo no existe
+        if (error.response?.status === 404) {
+          console.log('❌ CalendarService - Tournament not found');
+          return false;
+        }
+      }
+      return false;
     }
   },
 

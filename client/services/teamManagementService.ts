@@ -149,17 +149,30 @@ export const positions = [
 // 🔹 MAPEO DE CATEGORÍAS
 // =======================
 const categoryMapping: { [key: string]: string } = {
+  'sub-13': 'SUB13',
+  'sub-14': 'SUB14',
   'sub-15': 'SUB15',
-  'sub-17': 'SUB17', 
+  'sub-16': 'SUB16',
+  'sub-17': 'SUB17',
+  'sub-19': 'SUB19',
   'sub-20': 'SUB20',
+  'sub-21': 'SUB21',
+  'professional': 'PROFESSIONAL',
+  'veteran': 'VETERAN',
   'libre': 'LIBRE'
 };
 
 const reverseCategoryMapping: { [key: string]: string } = {
-  'SUB13': 'sub-15',
+  'SUB13': 'sub-13',
+  'SUB14': 'sub-14',
   'SUB15': 'sub-15',
+  'SUB16': 'sub-16',
   'SUB17': 'sub-17',
-  'SUB20': 'sub-20', 
+  'SUB19': 'sub-19',
+  'SUB20': 'sub-20',
+  'SUB21': 'sub-21',
+  'PROFESSIONAL': 'professional',
+  'VETERAN': 'veteran',
   'LIBRE': 'libre'
 };
 
@@ -448,5 +461,6 @@ class TeamService {
     console.groupEnd();
   }
 }
+
 
 export default new TeamService();

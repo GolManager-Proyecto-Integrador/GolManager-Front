@@ -14,9 +14,16 @@ import teamService, { Team, Player, positions } from '@/services/teamManagServic
 
 // 🔹 Categorías locales
 const categories = [
+  { value: 'sub-13', label: 'Sub-13' },
+  { value: 'sub-14', label: 'Sub-14' },
   { value: 'sub-15', label: 'Sub-15' },
+  { value: 'sub-16', label: 'Sub-16' },
   { value: 'sub-17', label: 'Sub-17' },
+  { value: 'sub-19', label: 'Sub-19' },
   { value: 'sub-20', label: 'Sub-20' },
+  { value: 'sub-21', label: 'Sub-21' },
+  { value: 'professional', label: 'Professional' },
+  { value: 'veteran', label: 'Veteran' },
   { value: 'libre', label: 'Libre' }
 ];
 
